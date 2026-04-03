@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+    <meta name="theme-color" content="#f5f5f7" id="theme-color-meta">
     <title>Simply</title>
     <style>
         * {
@@ -66,9 +67,8 @@
             --select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%237c7c85' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
         }
 
-        /* ----- Цветовые акценты ----- */
+        /* ----- Цветовые акценты (без индиго) ----- */
         body.accent-blue { --accent-color: #007aff; --accent-light: rgba(0, 122, 255, 0.2); }
-        body.accent-indigo { --accent-color: #5856d6; --accent-light: rgba(88, 86, 214, 0.2); }
         body.accent-purple { --accent-color: #6c5ce7; --accent-light: rgba(108, 92, 231, 0.2); }
         body.accent-pink { --accent-color: #ff6b81; --accent-light: rgba(255, 107, 129, 0.2); }
         body.accent-mint { --accent-color: #2ecc71; --accent-light: rgba(46, 204, 113, 0.2); }
@@ -153,18 +153,19 @@
             font-size: 0.9rem;
         }
 
-        /* Панель навигации — увеличенный верхний отступ с учётом безопасной зоны */
+        /* Панель навигации — увеличенная высота */
         .nav-bar {
             position: relative;
             background: var(--nav-bg);
             backdrop-filter: blur(20px);
             display: flex;
-            padding: 0.3rem;
+            padding: 0.5rem;
             gap: 0.5rem;
             border-radius: 2rem;
             margin: calc(1.2rem + env(safe-area-inset-top, 0px)) 1rem 0.75rem 1rem;
             z-index: 10;
             box-shadow: var(--shadow-sm);
+            min-height: 3.2rem;
         }
         .tab-btn {
             flex: 1;
@@ -186,8 +187,8 @@
         }
         .floating-indicator {
             position: absolute;
-            top: 0.3rem;
-            bottom: 0.3rem;
+            top: 0.5rem;
+            bottom: 0.5rem;
             background-color: var(--accent-color);
             border-radius: 1.8rem;
             transition: transform 0.25s cubic-bezier(0.2, 0.9, 0.4, 1.1), width 0.2s ease;
@@ -247,17 +248,18 @@
             color: var(--text-primary);
         }
 
-        /* Панель ввода — увеличенный нижний отступ */
+        /* Панель ввода — увеличенная высота */
         .input-bar {
             background: var(--nav-bg);
             backdrop-filter: blur(20px);
-            padding: 0.7rem 1rem;
+            padding: 0.8rem 1rem;
             margin: 0.75rem 1rem calc(1.5rem + env(safe-area-inset-bottom, 0px));
             border-radius: 2rem;
             display: flex;
             gap: 10px;
             align-items: flex-end;
             box-shadow: var(--shadow-sm);
+            min-height: 3.5rem;
         }
         .input-bar textarea {
             flex: 1;
@@ -401,7 +403,7 @@
             opacity: 0.5;
         }
 
-        /* Безопасные зоны — отступы только для контейнеров авторизации/приложения */
+        /* Безопасные зоны */
         @supports (padding-top: env(safe-area-inset-top)) {
             .auth-container, .app-container {
                 padding-top: env(safe-area-inset-top);
@@ -453,7 +455,6 @@
                 <span class="setting-label">Оттенок</span>
                 <select id="accentSelect" class="accent-select">
                     <option value="blue">Синий</option>
-                    <option value="indigo">Индиго</option>
                     <option value="purple">Фиолетовый</option>
                     <option value="pink">Розовый</option>
                     <option value="mint">Мятный</option>
@@ -493,6 +494,23 @@
         theme: 'adaptive', accent: 'blue', systemFontEnabled: false, fontSizeStep: 3
     };
 
+    // --- Функция обновления цвета статус-бара ---
+    function updateStatusBarColor() {
+        const metaThemeColor = document.querySelector('meta[name="theme-color"]');
+        if (!metaThemeColor) return;
+        const bodyClass = document.body.className;
+        if (bodyClass.includes('theme-dark')) {
+            metaThemeColor.setAttribute('content', '#0c0c0d');
+        } else if (bodyClass.includes('theme-night')) {
+            metaThemeColor.setAttribute('content', '#000000');
+        } else {
+            // adaptive или light
+            const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            if (isDark) metaThemeColor.setAttribute('content', '#0c0c0d');
+            else metaThemeColor.setAttribute('content', '#f5f5f7');
+        }
+    }
+
     // --- Функции тем, акцентов, размера ---
     function applyTheme(theme) {
         document.body.classList.remove('theme-light', 'theme-dark', 'theme-night');
@@ -504,11 +522,11 @@
         else if (theme === 'night') document.body.classList.add('theme-night');
         appSettings.theme = theme;
         localStorage.setItem('simply_settings', JSON.stringify(appSettings));
+        updateStatusBarColor();
     }
     function applyAccent(accent) {
-        document.body.classList.remove('accent-blue', 'accent-indigo', 'accent-purple', 'accent-pink', 'accent-mint', 'accent-orange', 'accent-yellow', 'accent-teal');
+        document.body.classList.remove('accent-blue', 'accent-purple', 'accent-pink', 'accent-mint', 'accent-orange', 'accent-yellow', 'accent-teal');
         if (accent === 'blue') document.body.classList.add('accent-blue');
-        else if (accent === 'indigo') document.body.classList.add('accent-indigo');
         else if (accent === 'purple') document.body.classList.add('accent-purple');
         else if (accent === 'pink') document.body.classList.add('accent-pink');
         else if (accent === 'mint') document.body.classList.add('accent-mint');
