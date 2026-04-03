@@ -12,7 +12,7 @@
             -webkit-tap-highlight-color: transparent;
         }
 
-        /* Переменные (темы, акценты) – без изменений, всё как раньше */
+        /* Переменные (темы, акценты) */
         :root { --bg-page: #f5f5f7; --card-bg: #ffffff; --text-primary: #000000; --text-secondary: #5e5e66; --border-light: rgba(60, 60, 67, 0.08); --nav-bg: rgba(255, 255, 255, 0.85); --shadow-sm: 0 8px 20px rgba(0, 0, 0, 0.05), 0 2px 4px rgba(0, 0, 0, 0.02); --message-bg: #e9e9ef; --input-bg: rgba(255, 255, 255, 0.9); --placeholder: #8e8e93; --separator: rgba(60, 60, 67, 0.08); --toggle-bg: #e5e5ea; --toggle-active: #34c759; --select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%235e5e66' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E"); --accent-color: #007aff; --accent-light: rgba(0, 122, 255, 0.15); }
         body.theme-dark { --bg-page: #000000; --card-bg: #1c1c1e; --text-primary: #ffffff; --text-secondary: #8e8e93; --border-light: rgba(84, 84, 88, 0.2); --nav-bg: rgba(28, 28, 30, 0.85); --message-bg: #2c2c2e; --input-bg: rgba(28, 28, 30, 0.9); --placeholder: #636366; --separator: rgba(84, 84, 88, 0.2); --toggle-bg: #2c2c2e; --toggle-active: #30d158; --select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238e8e93' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E"); }
         body.theme-night { --bg-page: #0b0b0e; --card-bg: #121214; --text-primary: #ededef; --text-secondary: #7c7c85; --border-light: rgba(99, 99, 102, 0.25); --nav-bg: rgba(18, 18, 20, 0.85); --message-bg: #1d1d1f; --input-bg: rgba(18, 18, 20, 0.9); --placeholder: #5a5a62; --separator: rgba(99, 99, 102, 0.2); --toggle-bg: #1d1d1f; --toggle-active: #5e5ce0; --select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%237c7c85' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E"); }
@@ -52,12 +52,12 @@
         .message-nick { font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 4px; margin-left: 0.5rem; }
         .message-text { font-size: 1rem; line-height: 1.4; color: var(--text-primary); }
 
-        /* Панель ввода — теперь она сама будет двигаться, а остальное нет */
+        /* Панель ввода */
         .input-wrapper { position: relative; background: var(--nav-bg); backdrop-filter: blur(20px); border-top: 0.5px solid var(--separator); padding: 0.7rem 1rem; transition: transform 0.1s ease; }
         .input-bar { display: flex; gap: 10px; align-items: flex-end; }
         .input-bar textarea { flex: 1; background: var(--input-bg); border: 1px solid var(--border-light); border-radius: 2rem; padding: 0.75rem 1rem; font-size: 1rem; color: var(--text-primary); outline: none; resize: none; overflow-y: hidden; font-family: inherit; line-height: 1.4; max-height: 120px; transition: height 0.1s ease; }
         .input-bar textarea:focus { border-color: var(--accent-color); }
-        .send-btn { background: var(--accent-color); border: none; width: 2.75rem; height: 2.75rem; border-radius: 2.75rem; font-size: 1.2rem; color: white; font-size: 1.2rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s; flex-shrink: 0; margin-bottom: 2px; }
+        .send-btn { background: var(--accent-color); border: none; width: 2.75rem; height: 2.75rem; border-radius: 2.75rem; color: white; font-size: 1.3rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s; flex-shrink: 0; margin-bottom: 2px; }
 
         /* Настройки */
         .settings-container { padding: 1.5rem; display: flex; flex-direction: column; gap: 1.8rem; }
@@ -74,7 +74,7 @@
         .font-slider { width: 100%; margin-top: 8px; accent-color: var(--accent-color); }
         hr { border-color: var(--separator); opacity: 0.5; }
 
-        /* Для безопасной зоны (Dynamic Island) */
+        /* Безопасная зона */
         @supports (padding-top: env(safe-area-inset-top)) {
             .nav-bar { margin-top: max(0.75rem, env(safe-area-inset-top)); }
             .input-wrapper { padding-bottom: max(0.7rem, env(safe-area-inset-bottom)); }
@@ -122,7 +122,6 @@
 
 <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
 <script>
-    // --- Переменные ---
     let socket = null;
     let currentUser = null;
     let messages = [];
@@ -130,7 +129,7 @@
         theme: 'adaptive', accent: 'blue', systemFontEnabled: false, fontSizeStep: 3
     };
 
-    // --- Функции тем и размера (без изменений) ---
+    // --- Функции тем и размера ---
     function applyTheme(theme) {
         const body = document.body;
         body.classList.remove('theme-light', 'theme-dark', 'theme-night');
@@ -162,6 +161,15 @@
         else {
             const sizes = [0.75,0.85,0.95,1.05,1.15,1.25,1.4];
             root.style.fontSize = `${sizes[step] || 1.05}rem`;
+        }
+        // Пересчитываем высоту textarea после изменения размера шрифта
+        autoResizeTextarea();
+    }
+    function autoResizeTextarea() {
+        const textarea = document.getElementById('messageInput');
+        if (textarea) {
+            textarea.style.height = 'auto';
+            textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
         }
     }
     function toggleFontSliderVisibility() {
@@ -205,12 +213,10 @@
     }
 
     // --- Авторизация/регистрация ---
-    async function performAuth() {
-        const nick = document.getElementById('loginNick').value.trim();
-        const key = document.getElementById('loginKey').value.trim();
+    async function performAuth(nick, key, fromAuto = false) {
         if (!nick || !key) {
-            document.getElementById('authError').innerText = 'Заполните оба поля';
-            return;
+            if (!fromAuto) document.getElementById('authError').innerText = 'Заполните оба поля';
+            return false;
         }
         try {
             const res = await fetch('/auth', {
@@ -221,10 +227,12 @@
             const data = await res.json();
             if (data.success) {
                 currentUser = { nick: data.nick };
-                localStorage.setItem('simply_user', JSON.stringify(currentUser));
+                // Сохраняем ник и ключ в localStorage для автоматического входа
+                localStorage.setItem('simply_creds', JSON.stringify({ nick, key }));
                 document.getElementById('authPage').style.display = 'none';
                 document.getElementById('appPage').style.display = 'flex';
                 document.getElementById('displayNick').innerText = currentUser.nick;
+                if (socket) socket.disconnect();
                 socket = io();
                 socket.on('message received', (newMsg) => {
                     messages.push(newMsg);
@@ -232,11 +240,36 @@
                 });
                 await loadHistory();
                 setActiveTab('chat');
+                return true;
             } else {
-                document.getElementById('authError').innerText = data.error || 'Неизвестно';
+                if (!fromAuto) document.getElementById('authError').innerText = data.error || 'Неизвестно';
+                return false;
             }
         } catch(e) {
-            document.getElementById('authError').innerText = 'Ошибка соединения с сервером';
+            if (!fromAuto) document.getElementById('authError').innerText = 'Ошибка соединения с сервером';
+            return false;
+        }
+    }
+
+    async function tryAutoLogin() {
+        const saved = localStorage.getItem('simply_creds');
+        if (saved) {
+            try {
+                const { nick, key } = JSON.parse(saved);
+                if (nick && key) {
+                    const success = await performAuth(nick, key, true);
+                    if (!success) {
+                        // Если не удалось, очищаем сохранённые данные и показываем форму
+                        localStorage.removeItem('simply_creds');
+                        document.getElementById('authPage').style.display = 'flex';
+                        document.getElementById('appPage').style.display = 'none';
+                    }
+                } else {
+                    localStorage.removeItem('simply_creds');
+                }
+            } catch(e) {
+                localStorage.removeItem('simply_creds');
+            }
         }
     }
 
@@ -247,7 +280,7 @@
         if (!text || !socket || !currentUser) return;
         socket.emit('new message', { nick: currentUser.nick, text });
         input.value = '';
-        input.style.height = 'auto';
+        autoResizeTextarea();
     }
 
     // --- Переключение вкладок ---
@@ -279,16 +312,14 @@
     let originalTransform = '';
     function handleKeyboard() {
         const inputWrapper = document.getElementById('inputWrapper');
-        if (!inputWrapper) return;
-        // При фокусе на textarea – сдвигаем только обёртку ввода
         const textarea = document.getElementById('messageInput');
+        if (!inputWrapper || !textarea) return;
         const onFocus = () => {
             setTimeout(() => {
-                const activeEl = document.activeElement;
-                if (activeEl !== textarea) return;
+                if (document.activeElement !== textarea) return;
                 const rect = inputWrapper.getBoundingClientRect();
                 const viewportHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-                const keyboardHeight = viewportHeight - (rect.bottom);
+                const keyboardHeight = viewportHeight - rect.bottom;
                 if (keyboardHeight > 50) {
                     originalTransform = inputWrapper.style.transform;
                     inputWrapper.style.transform = `translateY(-${keyboardHeight}px)`;
@@ -300,23 +331,24 @@
         };
         textarea.addEventListener('focus', onFocus);
         textarea.addEventListener('blur', onBlur);
-        // Также на изменение размера окна (поворот)
-        window.visualViewport?.addEventListener('resize', () => {
-            if (document.activeElement === textarea) {
-                const rect = inputWrapper.getBoundingClientRect();
-                const viewportHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-                const keyboardHeight = viewportHeight - (rect.bottom);
-                if (keyboardHeight > 50) {
-                    inputWrapper.style.transform = `translateY(-${keyboardHeight}px)`;
-                } else {
-                    inputWrapper.style.transform = originalTransform;
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('resize', () => {
+                if (document.activeElement === textarea) {
+                    const rect = inputWrapper.getBoundingClientRect();
+                    const viewportHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+                    const keyboardHeight = viewportHeight - rect.bottom;
+                    if (keyboardHeight > 50) {
+                        inputWrapper.style.transform = `translateY(-${keyboardHeight}px)`;
+                    } else {
+                        inputWrapper.style.transform = originalTransform;
+                    }
                 }
-            }
-        });
+            });
+        }
     }
 
     // --- Инициализация ---
-    window.onload = () => {
+    window.onload = async () => {
         applyTheme(appSettings.theme);
         applyAccent(appSettings.accent);
         applyFontSize(appSettings.systemFontEnabled, appSettings.fontSizeStep);
@@ -325,11 +357,15 @@
         if (appSettings.systemFontEnabled) document.getElementById('fontSliderContainer').style.display = 'none';
         else document.getElementById('fontSliderContainer').style.display = 'block';
 
-        document.getElementById('authBtn').onclick = performAuth;
+        document.getElementById('authBtn').onclick = () => {
+            const nick = document.getElementById('loginNick').value.trim();
+            const key = document.getElementById('loginKey').value.trim();
+            performAuth(nick, key, false);
+        };
         document.getElementById('sendBtn').onclick = sendMessage;
         const msgInput = document.getElementById('messageInput');
         msgInput.addEventListener('keypress', (e) => { if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } });
-        msgInput.addEventListener('input', function() { this.style.height = 'auto'; this.style.height = Math.min(this.scrollHeight, 120) + 'px'; });
+        msgInput.addEventListener('input', autoResizeTextarea);
 
         document.querySelectorAll('.tab-btn').forEach(btn => btn.onclick = () => setActiveTab(btn.getAttribute('data-tab')));
         document.getElementById('themeSelect').onchange = (e) => applyTheme(e.target.value);
@@ -342,16 +378,8 @@
             localStorage.setItem('simply_settings', JSON.stringify(appSettings));
         };
 
-        // Обработка клавиатуры
         handleKeyboard();
-
-        // Проверка сохранённого пользователя – если есть, пробуем автоматически войти?
-        // Но без пароля нельзя, поэтому просто очищаем (или можно попробовать повторно отправить запрос с сохранёнными данными? Небезопасно. Пусть вводит заново)
-        const savedUser = localStorage.getItem('simply_user');
-        if (savedUser) {
-            // Можно автоматически заполнить поля, но для безопасности лучше не заполнять пароль. Оставляем пустым.
-            localStorage.removeItem('simply_user');
-        }
+        await tryAutoLogin();
     };
 </script>
 </body>
