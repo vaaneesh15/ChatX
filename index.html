@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
-    <meta name="theme-color" content="#f5f5f7" id="theme-color-meta">
+    <meta name="theme-color" id="themeColorMeta" content="#f5f5f7">
     <title>Simply</title>
     <style>
         * {
@@ -153,16 +153,16 @@
             font-size: 0.9rem;
         }
 
-        /* Панель навигации — увеличенная высота, отступ сверху уменьшен */
+        /* Панель навигации — чуть выше, но с учётом безопасной зоны */
         .nav-bar {
             position: relative;
             background: var(--nav-bg);
             backdrop-filter: blur(20px);
             display: flex;
-            padding: 0.6rem 0.3rem;
+            padding: 0.3rem;
             gap: 0.5rem;
             border-radius: 2rem;
-            margin: calc(0.5rem + env(safe-area-inset-top, 0px)) 1rem 0.75rem 1rem;
+            margin: calc(0.6rem + env(safe-area-inset-top, 0px)) 1rem 0.75rem 1rem;
             z-index: 10;
             box-shadow: var(--shadow-sm);
         }
@@ -172,7 +172,7 @@
             border: none;
             font-size: 1rem;
             font-weight: 500;
-            padding: 0.5rem 0;
+            padding: 0.65rem 0;
             border-radius: 1.8rem;
             color: var(--text-secondary);
             cursor: pointer;
@@ -186,8 +186,8 @@
         }
         .floating-indicator {
             position: absolute;
-            top: 0.6rem;
-            bottom: 0.6rem;
+            top: 0.3rem;
+            bottom: 0.3rem;
             background-color: var(--accent-color);
             border-radius: 1.8rem;
             transition: transform 0.25s cubic-bezier(0.2, 0.9, 0.4, 1.1), width 0.2s ease;
@@ -247,12 +247,12 @@
             color: var(--text-primary);
         }
 
-        /* Панель ввода — увеличенная высота и увеличенный отступ снизу */
+        /* Панель ввода — увеличенный нижний отступ, чтобы не касаться низа */
         .input-bar {
             background: var(--nav-bg);
             backdrop-filter: blur(20px);
-            padding: 0.9rem 1rem;
-            margin: 0.75rem 1rem calc(1.2rem + env(safe-area-inset-bottom, 0px));
+            padding: 0.7rem 1rem;
+            margin: 0.75rem 1rem calc(1.8rem + env(safe-area-inset-bottom, 0px));
             border-radius: 2rem;
             display: flex;
             gap: 10px;
@@ -400,6 +400,13 @@
             border-color: var(--separator);
             opacity: 0.5;
         }
+
+        /* Безопасные зоны */
+        @supports (padding-top: env(safe-area-inset-top)) {
+            .auth-container, .app-container {
+                padding-top: env(safe-area-inset-top);
+            }
+        }
     </style>
 </head>
 <body>
@@ -480,38 +487,53 @@
     let currentUser = null;
     let messages = [];
     let authToken = localStorage.getItem('simply_token');
+    let systemThemeListener = null;
     
     let appSettings = JSON.parse(localStorage.getItem('simply_settings')) || {
         theme: 'adaptive', accent: 'blue', systemFontEnabled: false, fontSizeStep: 3
     };
 
-    // Функция обновления цвета статус-бара (theme-color)
+    // --- Обновление цвета статус-бара (theme-color) ---
     function updateStatusBarColor() {
-        const meta = document.getElementById('theme-color-meta');
+        const meta = document.getElementById('themeColorMeta');
         if (!meta) return;
-        const computedStyle = getComputedStyle(document.body);
-        const bgColor = computedStyle.getPropertyValue('--bg-page').trim();
+        const computedBg = getComputedStyle(document.body).getPropertyValue('--bg-page').trim();
         // Преобразуем CSS-переменную в реальный цвет
-        const tempDiv = document.createElement('div');
-        tempDiv.style.backgroundColor = bgColor;
-        document.body.appendChild(tempDiv);
-        const actualColor = getComputedStyle(tempDiv).backgroundColor;
-        document.body.removeChild(tempDiv);
-        meta.setAttribute('content', actualColor);
+        const bgColor = getComputedStyle(document.documentElement).getPropertyValue('--bg-page').trim();
+        meta.setAttribute('content', bgColor);
     }
 
     // --- Функции тем, акцентов, размера ---
     function applyTheme(theme) {
-        document.body.classList.remove('theme-light', 'theme-dark', 'theme-night');
+        const body = document.body;
+        body.classList.remove('theme-light', 'theme-dark', 'theme-night');
         if (theme === 'adaptive') {
             const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-            document.body.classList.add(prefersDark ? 'theme-dark' : 'theme-light');
-        } else if (theme === 'light') document.body.classList.add('theme-light');
-        else if (theme === 'dark') document.body.classList.add('theme-dark');
-        else if (theme === 'night') document.body.classList.add('theme-night');
+            body.classList.add(prefersDark ? 'theme-dark' : 'theme-light');
+        } else if (theme === 'light') body.classList.add('theme-light');
+        else if (theme === 'dark') body.classList.add('theme-dark');
+        else if (theme === 'night') body.classList.add('theme-night');
         appSettings.theme = theme;
         localStorage.setItem('simply_settings', JSON.stringify(appSettings));
         updateStatusBarColor();
+        
+        // Если тема адаптивная — слушаем изменения системы
+        if (theme === 'adaptive') {
+            if (systemThemeListener) systemThemeListener.removeEventListener?.('change', systemThemeListener);
+            systemThemeListener = (e) => {
+                if (appSettings.theme === 'adaptive') {
+                    document.body.classList.remove('theme-light', 'theme-dark', 'theme-night');
+                    document.body.classList.add(e.matches ? 'theme-dark' : 'theme-light');
+                    updateStatusBarColor();
+                }
+            };
+            window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', systemThemeListener);
+        } else {
+            if (systemThemeListener) {
+                window.matchMedia('(prefers-color-scheme: dark)').removeEventListener('change', systemThemeListener);
+                systemThemeListener = null;
+            }
+        }
     }
     function applyAccent(accent) {
         document.body.classList.remove('accent-blue', 'accent-purple', 'accent-pink', 'accent-mint', 'accent-orange', 'accent-yellow', 'accent-teal');
