@@ -13,7 +13,7 @@
             -webkit-tap-highlight-color: transparent;
         }
 
-        /* ----- Светлая тема ----- */
+        /* ----- Светлая тема (по умолчанию) ----- */
         :root {
             --bg-page: #f5f5f7;
             --card-bg: #ffffff;
@@ -45,22 +45,6 @@
             --toggle-bg: #3a3a3c;
             --toggle-active: #30d158;
             --select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2398989e' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-        }
-
-        /* ----- Ночная тема ----- */
-        body.theme-night {
-            --bg-page: #000000;
-            --card-bg: #111112;
-            --text-primary: #ecedef;
-            --text-secondary: #7c7c85;
-            --border-light: rgba(99, 99, 102, 0.3);
-            --message-bg: #1d1d1f;
-            --input-bg: rgba(29, 29, 31, 0.9);
-            --placeholder: #5a5a62;
-            --separator: rgba(99, 99, 102, 0.3);
-            --toggle-bg: #2c2c2e;
-            --toggle-active: #5e5ce0;
-            --select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%237c7c85' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
         }
 
         /* ----- Цветовые акценты (без индиго) ----- */
@@ -150,13 +134,12 @@
             font-size: 0.9rem;
         }
 
-        /* Навигация — без фоновой панели, только вкладки и пузырь */
+        /* Навигация — без фона, без пузыря */
         .nav-bar {
-            position: relative;
             display: flex;
             justify-content: center;
-            gap: 0.5rem;
-            margin: calc(0.6rem + env(safe-area-inset-top, 0px)) 1rem 0.75rem 1rem;
+            gap: 1.2rem;
+            margin: calc(0.4rem + env(safe-area-inset-top, 0px)) 1rem 0.5rem 1rem;
             z-index: 10;
         }
         .tab-btn {
@@ -164,29 +147,15 @@
             border: none;
             font-size: 1rem;
             font-weight: 500;
-            padding: 0.65rem 1.2rem;
+            padding: 0.5rem 0.8rem;
             border-radius: 2rem;
             color: var(--text-secondary);
             cursor: pointer;
             transition: color 0.2s ease;
-            position: relative;
-            z-index: 2;
             text-align: center;
         }
         .tab-btn.active {
-            color: white;
-        }
-        .floating-indicator {
-            position: absolute;
-            top: 0;
-            bottom: 0;
-            background-color: var(--accent-color);
-            border-radius: 2rem;
-            transition: transform 0.25s cubic-bezier(0.2, 0.9, 0.4, 1.1), width 0.2s ease;
-            width: 0;
-            left: 0;
-            opacity: 0.85;
-            z-index: 1;
+            color: var(--accent-color);
         }
 
         /* Страницы */
@@ -239,13 +208,13 @@
             color: var(--text-primary);
         }
 
-        /* Поле ввода — без фоновой панели, только строка и кнопка */
+        /* Поле ввода — без фона, компактные отступы */
         .input-wrapper {
             display: flex;
             gap: 10px;
             align-items: flex-end;
-            padding: 0.7rem 1rem;
-            margin: 0.75rem 1rem calc(1.8rem + env(safe-area-inset-bottom, 0px));
+            padding: 0.6rem 1rem;
+            margin: 0.2rem 1rem calc(0.5rem + env(safe-area-inset-bottom, 0px));
         }
         .input-wrapper textarea {
             flex: 1;
@@ -389,7 +358,7 @@
             opacity: 0.5;
         }
 
-        /* Безопасные зоны */
+        /* Безопасные зоны — только для компенсации вырезов */
         @supports (padding-top: env(safe-area-inset-top)) {
             .auth-container, .app-container {
                 padding-top: env(safe-area-inset-top);
@@ -413,7 +382,6 @@
     <div class="nav-bar">
         <button class="tab-btn" data-tab="chat">Чат</button>
         <button class="tab-btn" data-tab="settings">Настройки</button>
-        <div class="floating-indicator"></div>
     </div>
     <div id="chatPage" class="page active-page">
         <div class="chat-messages" id="messagesContainer"></div>
@@ -434,7 +402,6 @@
                     <option value="adaptive">Адаптивная</option>
                     <option value="light">Светлая</option>
                     <option value="dark">Тёмная</option>
-                    <option value="night">Ночная</option>
                 </select>
             </div>
             <div class="setting-row">
@@ -493,13 +460,12 @@
     // --- Функции тем, акцентов, размера ---
     function applyTheme(theme) {
         const body = document.body;
-        body.classList.remove('theme-light', 'theme-dark', 'theme-night');
+        body.classList.remove('theme-light', 'theme-dark');
         if (theme === 'adaptive') {
             const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
             body.classList.add(prefersDark ? 'theme-dark' : 'theme-light');
         } else if (theme === 'light') body.classList.add('theme-light');
         else if (theme === 'dark') body.classList.add('theme-dark');
-        else if (theme === 'night') body.classList.add('theme-night');
         appSettings.theme = theme;
         localStorage.setItem('simply_settings', JSON.stringify(appSettings));
         updateStatusBarColor();  // меняем сразу
@@ -511,7 +477,7 @@
             }
             systemThemeListener = (e) => {
                 if (appSettings.theme === 'adaptive') {
-                    document.body.classList.remove('theme-light', 'theme-dark', 'theme-night');
+                    document.body.classList.remove('theme-light', 'theme-dark');
                     document.body.classList.add(e.matches ? 'theme-dark' : 'theme-light');
                     updateStatusBarColor();
                 }
@@ -536,9 +502,6 @@
         else if (accent === 'teal') document.body.classList.add('accent-teal');
         appSettings.accent = accent;
         localStorage.setItem('simply_settings', JSON.stringify(appSettings));
-        // Обновляем цвет пузыря
-        const indicator = document.querySelector('.floating-indicator');
-        if (indicator) indicator.style.backgroundColor = 'var(--accent-color)';
     }
     
     function applyFontSize(systemEnabled, step) {
@@ -565,17 +528,29 @@
         localStorage.setItem('simply_settings', JSON.stringify(appSettings));
     }
 
-    // --- Анимация плашки (динамическая ширина) ---
-    function updateFloatingIndicator(activeTabId) {
-        const activeBtn = document.querySelector(`.tab-btn[data-tab="${activeTabId}"]`);
-        const indicator = document.querySelector('.floating-indicator');
-        if (!activeBtn || !indicator) return;
-        const parent = activeBtn.parentElement;
-        const btnRect = activeBtn.getBoundingClientRect();
-        const parentRect = parent.getBoundingClientRect();
-        const leftOffset = btnRect.left - parentRect.left;
-        indicator.style.width = `${btnRect.width}px`;
-        indicator.style.transform = `translateX(${leftOffset}px)`;
+    // --- Переключение вкладок (без пузыря, просто активный класс) ---
+    function setActiveTab(tabId) {
+        const chatPage = document.getElementById('chatPage');
+        const settingsPage = document.getElementById('settingsPage');
+        const tabBtns = document.querySelectorAll('.tab-btn');
+        if (tabId === 'chat') {
+            chatPage.classList.add('active-page');
+            settingsPage.classList.remove('active-page');
+            renderMessages();
+        } else {
+            chatPage.classList.remove('active-page');
+            settingsPage.classList.add('active-page');
+            document.getElementById('themeSelect').value = appSettings.theme;
+            document.getElementById('accentSelect').value = appSettings.accent;
+            document.getElementById('systemFontToggle').checked = appSettings.systemFontEnabled;
+            document.getElementById('fontSizeSlider').value = appSettings.fontSizeStep;
+            if (appSettings.systemFontEnabled) document.getElementById('fontSliderContainer').style.display = 'none';
+            else document.getElementById('fontSliderContainer').style.display = 'block';
+        }
+        tabBtns.forEach(btn => {
+            if (btn.getAttribute('data-tab') === tabId) btn.classList.add('active');
+            else btn.classList.remove('active');
+        });
     }
 
     // --- Чат ---
@@ -699,32 +674,6 @@
         socket.emit('new message', { nick: currentUser.nick, text });
         input.value = '';
         input.style.height = 'auto';
-    }
-
-    // --- Переключение вкладок ---
-    function setActiveTab(tabId) {
-        const chatPage = document.getElementById('chatPage');
-        const settingsPage = document.getElementById('settingsPage');
-        const tabBtns = document.querySelectorAll('.tab-btn');
-        if (tabId === 'chat') {
-            chatPage.classList.add('active-page');
-            settingsPage.classList.remove('active-page');
-            renderMessages();
-        } else {
-            chatPage.classList.remove('active-page');
-            settingsPage.classList.add('active-page');
-            document.getElementById('themeSelect').value = appSettings.theme;
-            document.getElementById('accentSelect').value = appSettings.accent;
-            document.getElementById('systemFontToggle').checked = appSettings.systemFontEnabled;
-            document.getElementById('fontSizeSlider').value = appSettings.fontSizeStep;
-            if (appSettings.systemFontEnabled) document.getElementById('fontSliderContainer').style.display = 'none';
-            else document.getElementById('fontSliderContainer').style.display = 'block';
-        }
-        tabBtns.forEach(btn => {
-            if (btn.getAttribute('data-tab') === tabId) btn.classList.add('active');
-            else btn.classList.remove('active');
-        });
-        updateFloatingIndicator(tabId);
     }
 
     // --- Инициализация ---
