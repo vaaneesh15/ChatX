@@ -154,7 +154,7 @@
             font-size: 0.9rem;
         }
 
-        /* Навигация с анимированной плашкой — отступы плашки равны паддингам панели */
+        /* Навигация с анимированной плашкой — увеличен верхний отступ */
         .nav-bar {
             position: relative;
             background: var(--nav-bg);
@@ -163,7 +163,7 @@
             padding: 0.3rem;
             gap: 0.5rem;
             border-radius: 2rem;
-            margin: 0.75rem 1rem;
+            margin: 1rem 1rem 0.75rem 1rem;
             z-index: 10;
             box-shadow: var(--shadow-sm);
         }
@@ -248,12 +248,12 @@
             color: var(--text-primary);
         }
 
-        /* Летающая панель ввода — фиксируем положение */
+        /* Летающая панель ввода — увеличен нижний отступ */
         .input-bar {
             background: var(--nav-bg);
             backdrop-filter: blur(20px);
             padding: 0.7rem 1rem;
-            margin: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom, 0px));
+            margin: 0.5rem 1rem 1rem 1rem;
             border-radius: 2rem;
             display: flex;
             gap: 10px;
@@ -404,10 +404,16 @@
             opacity: 0.5;
         }
 
-        /* Безопасные зоны */
+        /* Безопасные зоны — точная настройка для вырезов */
         @supports (padding-top: env(safe-area-inset-top)) {
             .auth-container, .app-container {
                 padding-top: env(safe-area-inset-top);
+            }
+            .nav-bar {
+                margin-top: calc(1rem + env(safe-area-inset-top));
+            }
+            .input-bar {
+                margin-bottom: calc(1rem + env(safe-area-inset-bottom));
             }
         }
     </style>
