@@ -133,28 +133,7 @@
             font-size: 0.9rem;
         }
 
-        /* Навигация */
-        .nav-bar {
-            display: flex;
-            justify-content: center;
-            gap: 1.2rem;
-            margin: max(0.4rem, env(safe-area-inset-top, 0px)) 1rem 0.5rem 1rem;
-        }
-        .tab-btn {
-            background: none;
-            border: none;
-            font-size: 1rem;
-            font-weight: 500;
-            padding: 0.5rem 0.8rem;
-            border-radius: 2rem;
-            color: var(--text-secondary);
-            cursor: pointer;
-            transition: color 0.2s ease;
-        }
-        .tab-btn.active {
-            color: var(--accent-color);
-        }
-
+        /* Страницы */
         .page {
             flex: 1;
             overflow-y: auto;
@@ -240,7 +219,7 @@
             flex-direction: column;
             gap: 6px;
             padding: 0.6rem 1rem;
-            margin: 0.2rem 1rem max(0.4rem, env(safe-area-inset-bottom, 0px));
+            margin: 0.2rem 1rem 0.5rem 1rem;
         }
         .reply-indicator {
             background: var(--message-bg);
@@ -300,6 +279,28 @@
             margin-bottom: 2px;
         }
 
+        /* Панель навигации (внизу) */
+        .nav-bar {
+            display: flex;
+            justify-content: center;
+            gap: 1.2rem;
+            margin: 0.2rem 1rem 0.6rem 1rem;
+        }
+        .tab-btn {
+            background: none;
+            border: none;
+            font-size: 1rem;
+            font-weight: 500;
+            padding: 0.5rem 0.8rem;
+            border-radius: 2rem;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: color 0.2s ease;
+        }
+        .tab-btn.active {
+            color: var(--accent-color);
+        }
+
         /* Настройки */
         .settings-container {
             padding: 1.5rem;
@@ -318,7 +319,7 @@
             font-weight: 500;
             font-size: 1rem;
         }
-        .nick-readonly, .nick-input, .password-input {
+        .nick-input, .password-input {
             background: var(--input-bg);
             padding: 0.6rem 1rem;
             border-radius: 1rem;
@@ -406,11 +407,14 @@
             border-color: var(--separator);
             opacity: 0.5;
         }
-
-        @supports (padding-top: env(safe-area-inset-top)) {
-            .auth-container, .app-container {
-                padding-top: env(safe-area-inset-top);
-            }
+        .full-width {
+            width: 100%;
+            flex-direction: column;
+            align-items: stretch;
+        }
+        .full-width .setting-row {
+            flex-direction: column;
+            align-items: stretch;
         }
     </style>
 </head>
@@ -427,10 +431,7 @@
 </div>
 
 <div id="appPage" class="app-container" style="display: none;">
-    <div class="nav-bar">
-        <button class="tab-btn" data-tab="chat">Чат</button>
-        <button class="tab-btn" data-tab="settings">Настройки</button>
-    </div>
+    <!-- Сначала чат -->
     <div id="chatPage" class="page active-page">
         <div class="chat-messages" id="messagesContainer"></div>
         <div class="input-wrapper" id="inputWrapper">
@@ -444,23 +445,23 @@
             </div>
         </div>
     </div>
+    <!-- Затем панель навигации внизу -->
+    <div class="nav-bar">
+        <button class="tab-btn" data-tab="chat">Чат</button>
+        <button class="tab-btn" data-tab="settings">Настройки</button>
+    </div>
+    <!-- Страница настроек (скрыта) -->
     <div id="settingsPage" class="page">
         <div class="settings-container">
-            <div class="setting-row">
+            <div class="setting-row full-width">
                 <span class="setting-label">Ваш ник</span>
                 <input type="text" id="nickInput" class="nick-input" placeholder="Новый ник">
                 <button id="changeNickBtn" class="small-btn">Сменить</button>
             </div>
-            <div class="setting-row">
-                <span class="setting-label">Сменить пароль</span>
-                <input type="password" id="oldPassword" placeholder="Старый пароль" class="password-input">
-                <input type="password" id="newPassword" placeholder="Новый пароль" class="password-input">
-                <button id="changePasswordBtn" class="small-btn">Обновить</button>
-            </div>
             <hr>
-            <div class="setting-row">
+            <div class="setting-row full-width">
                 <span class="setting-label">Удалить аккаунт</span>
-                <input type="password" id="deletePassword" placeholder="Пароль" class="password-input">
+                <input type="password" id="deletePassword" class="password-input" placeholder="Пароль">
                 <button id="deleteAccountBtn" class="danger-btn">Удалить</button>
             </div>
             <hr>
@@ -511,7 +512,7 @@
     let messages = [];
     let authToken = localStorage.getItem('simply_token');
     let systemThemeListener = null;
-    let replyToMessage = null; // { id, nick, text }
+    let replyToMessage = null;
     
     let appSettings = JSON.parse(localStorage.getItem('simply_settings')) || {
         theme: 'adaptive', accent: 'blue', systemFontEnabled: false, fontSizeStep: 3
@@ -617,7 +618,7 @@
             `;
             container.appendChild(msgDiv);
         });
-        // Добавляем обработчики кнопок
+        // Обработчики кнопок ответа
         document.querySelectorAll('.reply-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 const id = parseInt(btn.dataset.id);
@@ -630,6 +631,7 @@
                 document.getElementById('messageInput').focus();
             });
         });
+        // Обработчики кнопок удаления
         document.querySelectorAll('.delete-btn').forEach(btn => {
             btn.addEventListener('click', async (e) => {
                 const id = parseInt(btn.dataset.id);
@@ -723,7 +725,7 @@
         return false;
     }
 
-    // --- Отправка сообщения (с ответом или без) ---
+    // --- Отправка сообщения ---
     async function sendMessage() {
         const input = document.getElementById('messageInput');
         const text = input.value.trim();
@@ -751,7 +753,7 @@
         document.getElementById('replyIndicator').style.display = 'none';
     }
 
-    // --- Настройки: смена ника, пароля, удаление аккаунта ---
+    // --- Настройки ---
     async function changeNick() {
         const newNick = document.getElementById('nickInput').value.trim();
         if (!newNick || newNick === currentUser.nick) return;
@@ -765,22 +767,6 @@
             currentUser.nick = data.newNick;
             alert('Ник изменён');
             await loadHistory();
-        } else alert(data.error);
-    }
-    async function changePassword() {
-        const oldPass = document.getElementById('oldPassword').value;
-        const newPass = document.getElementById('newPassword').value;
-        if (!oldPass || !newPass) { alert('Заполните поля'); return; }
-        const res = await fetch('/change-password', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ token: authToken, oldPassword: oldPass, newPassword: newPass })
-        });
-        const data = await res.json();
-        if (data.success) {
-            alert('Пароль изменён');
-            document.getElementById('oldPassword').value = '';
-            document.getElementById('newPassword').value = '';
         } else alert(data.error);
     }
     async function deleteAccount() {
@@ -844,7 +830,6 @@
         document.getElementById('cancelReplyBtn').onclick = cancelReply;
         document.getElementById('logoutBtn').onclick = logout;
         document.getElementById('changeNickBtn').onclick = changeNick;
-        document.getElementById('changePasswordBtn').onclick = changePassword;
         document.getElementById('deleteAccountBtn').onclick = deleteAccount;
 
         const msgInput = document.getElementById('messageInput');
