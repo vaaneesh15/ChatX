@@ -23,8 +23,10 @@ async function initDB() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS users (
       id SERIAL PRIMARY KEY,
-      nick VARCHAR(50) UNIQUE NOT NULL,
-      password_hash TEXT NOT NULL,
+      nick VARCHAR(50) NOT NULL,
+      tag VARCHAR(4) NOT NULL,
+      full_nick VARCHAR(55) UNIQUE NOT NULL,
+      pin_hash TEXT NOT NULL,
       token TEXT UNIQUE,
       created_at TIMESTAMP DEFAULT NOW()
     );
@@ -32,7 +34,7 @@ async function initDB() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS messages (
       id SERIAL PRIMARY KEY,
-      nick VARCHAR(50) NOT NULL,
+      full_nick VARCHAR(55) NOT NULL,
       text TEXT NOT NULL,
       created_at TIMESTAMP DEFAULT NOW()
     );
@@ -41,41 +43,113 @@ async function initDB() {
 }
 initDB();
 
+function generateTag() {
+  return '#' + Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+}
+
+async function isFullNickUnique(fullNick) {
+  const res = await pool.query('SELECT id FROM users WHERE full_nick = $1', [fullNick]);
+  return res.rows.length === 0;
+}
+
+// Авторизация / регистрация с PIN
 app.post('/auth', async (req, res) => {
-  const { nick } = req.body;
-  if (!nick || nick.trim() === '') {
-    return res.status(400).json({ success: false, error: 'Ник не может быть пустым' });
+  const { nick, pin } = req.body;
+  if (!nick || nick.trim() === '' || !pin || pin.length !== 4 || !/^\d+$/.test(pin)) {
+    return res.status(400).json({ success: false, error: 'Неверный ник или PIN (4 цифры)' });
   }
-  let user = await pool.query('SELECT id, nick FROM users WHERE nick = $1', [nick.trim()]);
-  if (user.rows.length === 0) {
-    const hash = await bcrypt.hash('', 10);
+  const cleanNick = nick.trim();
+  const existing = await pool.query('SELECT id, full_nick, pin_hash FROM users WHERE nick = $1', [cleanNick]);
+  if (existing.rows.length > 0) {
+    // Проверяем PIN
+    const valid = await bcrypt.compare(pin, existing.rows[0].pin_hash);
+    if (!valid) return res.json({ success: false, error: 'Неверный PIN' });
     const token = uuidv4();
-    await pool.query('INSERT INTO users (nick, password_hash, token) VALUES ($1, $2, $3)', [nick.trim(), hash, token]);
-    res.json({ success: true, nick: nick.trim(), token });
+    await pool.query('UPDATE users SET token = $1 WHERE id = $2', [token, existing.rows[0].id]);
+    return res.json({ success: true, full_nick: existing.rows[0].full_nick, token });
   } else {
+    // Новый пользователь
+    let tag;
+    let full_nick;
+    let unique = false;
+    let attempts = 0;
+    while (!unique && attempts < 20) {
+      tag = generateTag();
+      full_nick = `${cleanNick}${tag}`;
+      unique = await isFullNickUnique(full_nick);
+      attempts++;
+    }
+    if (!unique) return res.status(500).json({ success: false, error: 'Ошибка генерации тега' });
+    const pinHash = await bcrypt.hash(pin, 10);
     const token = uuidv4();
-    await pool.query('UPDATE users SET token = $1 WHERE id = $2', [token, user.rows[0].id]);
-    res.json({ success: true, nick: user.rows[0].nick, token });
+    await pool.query(
+      'INSERT INTO users (nick, tag, full_nick, pin_hash, token) VALUES ($1, $2, $3, $4, $5)',
+      [cleanNick, tag, full_nick, pinHash, token]
+    );
+    return res.json({ success: true, full_nick, token });
   }
 });
 
+// Проверка токена (без PIN)
 app.post('/verify', async (req, res) => {
   const { token } = req.body;
   if (!token) return res.json({ success: false });
-  const user = await pool.query('SELECT nick FROM users WHERE token = $1', [token]);
-  if (user.rows.length > 0) res.json({ success: true, nick: user.rows[0].nick });
+  const user = await pool.query('SELECT full_nick FROM users WHERE token = $1', [token]);
+  if (user.rows.length > 0) res.json({ success: true, full_nick: user.rows[0].full_nick });
   else res.json({ success: false });
 });
 
+// Смена PIN (требует старый PIN)
+app.post('/change-pin', async (req, res) => {
+  const { token, oldPin, newPin } = req.body;
+  if (!token || !oldPin || !newPin || newPin.length !== 4 || !/^\d+$/.test(newPin)) {
+    return res.status(400).json({ success: false, error: 'Некорректные данные' });
+  }
+  const user = await pool.query('SELECT pin_hash FROM users WHERE token = $1', [token]);
+  if (user.rows.length === 0) return res.json({ success: false, error: 'Сессия недействительна' });
+  const valid = await bcrypt.compare(oldPin, user.rows[0].pin_hash);
+  if (!valid) return res.json({ success: false, error: 'Неверный старый PIN' });
+  const newHash = await bcrypt.hash(newPin, 10);
+  await pool.query('UPDATE users SET pin_hash = $1 WHERE token = $2', [newHash, token]);
+  res.json({ success: true });
+});
+
+// Смена ника (требует PIN)
+app.post('/change-nick', async (req, res) => {
+  const { token, newNick, pin } = req.body;
+  if (!token || !newNick || newNick.trim() === '' || !pin) {
+    return res.status(400).json({ success: false, error: 'Данные неполные' });
+  }
+  const user = await pool.query('SELECT nick, full_nick, pin_hash FROM users WHERE token = $1', [token]);
+  if (user.rows.length === 0) return res.json({ success: false, error: 'Сессия недействительна' });
+  const valid = await bcrypt.compare(pin, user.rows[0].pin_hash);
+  if (!valid) return res.json({ success: false, error: 'Неверный PIN' });
+  const oldFullNick = user.rows[0].full_nick;
+  const oldNick = user.rows[0].nick;
+  if (newNick === oldNick) return res.json({ success: true, newFullNick: oldFullNick });
+  // Генерируем новый полный ник с тем же тегом (тег не меняем)
+  const tag = oldFullNick.substring(oldNick.length); // извлечём #123
+  const newFullNick = `${newNick}${tag}`;
+  // Проверяем уникальность нового полного ника (маловероятно, но может быть)
+  const existing = await pool.query('SELECT id FROM users WHERE full_nick = $1', [newFullNick]);
+  if (existing.rows.length > 0) {
+    return res.json({ success: false, error: 'Ник уже существует (возможно, с другим тегом)' });
+  }
+  await pool.query('UPDATE users SET nick = $1, full_nick = $2 WHERE token = $3', [newNick, newFullNick, token]);
+  await pool.query('UPDATE messages SET full_nick = $1 WHERE full_nick = $2', [newFullNick, oldFullNick]);
+  io.emit('nick changed', { oldFullNick, newFullNick });
+  res.json({ success: true, newFullNick });
+});
+
 app.get('/messages', async (req, res) => {
-  const result = await pool.query('SELECT id, nick, text, created_at FROM messages ORDER BY created_at ASC LIMIT 200');
+  const result = await pool.query('SELECT id, full_nick, text, created_at FROM messages ORDER BY created_at ASC LIMIT 200');
   res.json(result.rows);
 });
 
 app.post('/delete-message', async (req, res) => {
-  const { nick, messageId } = req.body;
-  if (!nick || !messageId) return res.status(400).json({ success: false });
-  const result = await pool.query('DELETE FROM messages WHERE id = $1 AND nick = $2 RETURNING id', [messageId, nick]);
+  const { full_nick, messageId } = req.body;
+  if (!full_nick || !messageId) return res.status(400).json({ success: false });
+  const result = await pool.query('DELETE FROM messages WHERE id = $1 AND full_nick = $2 RETURNING id', [messageId, full_nick]);
   if (result.rowCount > 0) {
     io.emit('message deleted', messageId);
     res.json({ success: true });
@@ -84,35 +158,17 @@ app.post('/delete-message', async (req, res) => {
   }
 });
 
-// Смена ника с обновлением всех сообщений пользователя
-app.post('/change-nick', async (req, res) => {
-  const { token, newNick } = req.body;
-  if (!token || !newNick) return res.status(400).json({ success: false });
-  const user = await pool.query('SELECT nick FROM users WHERE token = $1', [token]);
-  if (user.rows.length === 0) return res.json({ success: false });
-  const oldNick = user.rows[0].nick;
-  if (oldNick === newNick) return res.json({ success: true, newNick });
-  // Проверка, что новый ник не занят
-  const existing = await pool.query('SELECT id FROM users WHERE nick = $1', [newNick]);
-  if (existing.rows.length > 0) return res.json({ success: false, error: 'Ник уже занят' });
-  await pool.query('UPDATE users SET nick = $1 WHERE token = $2', [newNick, token]);
-  await pool.query('UPDATE messages SET nick = $1 WHERE nick = $2', [newNick, oldNick]);
-  // Оповещаем всех клиентов об изменении ника
-  io.emit('nick changed', { oldNick, newNick });
-  res.json({ success: true, newNick });
-});
-
 io.on('connection', (socket) => {
   socket.on('new message', async (data) => {
-    const { nick, text } = data;
-    if (!nick || !text || text.trim() === '') return;
+    const { full_nick, text } = data;
+    if (!full_nick || !text || text.trim() === '') return;
     const result = await pool.query(
-      'INSERT INTO messages (nick, text) VALUES ($1, $2) RETURNING id, created_at',
-      [nick, text.trim()]
+      'INSERT INTO messages (full_nick, text) VALUES ($1, $2) RETURNING id, created_at',
+      [full_nick, text.trim()]
     );
     const newMsg = {
       id: result.rows[0].id,
-      nick,
+      full_nick,
       text: text.trim(),
       created_at: result.rows[0].created_at
     };
