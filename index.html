@@ -10,7 +10,7 @@
             padding: 0;
             box-sizing: border-box;
             -webkit-tap-highlight-color: transparent;
-            user-select: none; /* отключаем выделение текста */
+            user-select: none;
         }
         html, body { height: 100%; overflow: hidden; }
         body {
@@ -26,18 +26,18 @@
             --accent-color: #0a84ff;
             --input-bg: #1c1c1e;
         }
-        /* Цвета в заданном порядке */
+        /* Новые, сбалансированные цвета */
         body.accent-blue { --accent-color: #0a84ff; }
-        body.accent-indigo { --accent-color: #5856d6; }
-        body.accent-purple { --accent-color: #af52de; }
-        body.accent-pink { --accent-color: #ff375f; }
-        body.accent-red { --accent-color: #ff3b30; }
-        body.accent-orange { --accent-color: #ff9f0a; }
+        body.accent-indigo { --accent-color: #4f46e5; }
+        body.accent-purple { --accent-color: #8b5cf6; }
+        body.accent-pink { --accent-color: #ec4899; }
+        body.accent-red { --accent-color: #ef4444; }
+        body.accent-orange { --accent-color: #f97316; }
         body.accent-beige { --accent-color: #d4a373; }
-        body.accent-yellow { --accent-color: #ffd60a; }
-        body.accent-mint { --accent-color: #30d158; }
-        body.accent-teal { --accent-color: #64d2ff; }
-        body.accent-gray { --accent-color: #8e8e93; }
+        body.accent-yellow { --accent-color: #eab308; }
+        body.accent-mint { --accent-color: #10b981; }
+        body.accent-teal { --accent-color: #06b6d4; }
+        body.accent-gray { --accent-color: #9ca3af; }
 
         .login-screen {
             position: fixed; top:0; left:0; width:100%; height:100%;
@@ -99,14 +99,13 @@
             color:white; font-size:1.3rem; cursor:pointer; display:flex; align-items:center; justify-content:center;
         }
 
-        /* Кнопка прокрутки вниз */
-        .scroll-down-btn {
-            position: absolute; bottom: 5rem; right: 1rem; width: 2.5rem; height: 2.5rem;
-            background: #2c2c2e; border: 1px solid var(--border-light); border-radius: 2rem;
-            display: flex; align-items: center; justify-content: center; cursor: pointer;
-            color: var(--text-secondary); z-index: 100; transition: opacity 0.2s;
+        /* Круглые кнопки для редактирования */
+        .edit-cancel, .edit-save {
+            width: 2rem; height: 2rem; border-radius: 2rem; display: inline-flex; align-items: center;
+            justify-content: center; font-size: 1rem; cursor: pointer; border: none;
         }
-        .scroll-down-btn svg { width: 1.2rem; height: 1.2rem; stroke: currentColor; stroke-width: 2; }
+        .edit-cancel { background: #3a3a3c; color: white; }
+        .edit-save { background: var(--accent-color); color: white; }
 
         /* Модальные окна */
         .modal {
@@ -152,7 +151,7 @@
         }
         .context-menu button:hover { background:rgba(255,255,255,0.1); }
 
-        /* Стили для писем */
+        /* Письма */
         .mails-list { max-height:60vh; overflow-y:auto; display:flex; flex-direction:column; gap:10px; margin-bottom:1rem; }
         .mail-item {
             background:#2c2c2e; border-radius:1rem; padding:0.8rem; cursor:pointer;
@@ -164,7 +163,6 @@
         .mail-actions { display:flex; gap:10px; justify-content:flex-end; margin-top:0.5rem; }
         .mail-actions button { background:none; border:none; color:var(--accent-color); cursor:pointer; font-size:0.8rem; }
 
-        /* Настройки: исправления отступов */
         .accent-select { background-position: right 1rem center !important; padding-left: 1rem !important; }
         .nick-readonly { border:1px solid var(--border-light); border-radius:1rem; padding:0.6rem 1rem; background:var(--input-bg); color:var(--text-primary); font-size:1rem; }
     </style>
@@ -203,46 +201,10 @@
             <button class="send-btn" id="sendBtn">↑</button>
         </div>
     </div>
-    <div id="scrollDownBtn" class="scroll-down-btn" style="display: none;">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="6 9 12 15 18 9"></polyline>
-        </svg>
-    </div>
 </div>
 
-<!-- Модальные окна (настройки, смена ника, смена PIN, письма) -->
-<div id="settingsModal" class="modal">
-    <div class="modal-content">
-        <h3>Настройки</h3>
-        <div class="modal-setting">
-            <label>Ваш ник</label>
-            <div id="displayNickWithTag" class="nick-readonly"></div>
-            <button id="changeNickBtn" style="margin-top:8px; width:100%; background:var(--accent-color); border:none; padding:0.5rem; border-radius:1rem; color:white;">Изменить ник</button>
-        </div>
-        <div class="modal-setting">
-            <label>Сменить PIN</label>
-            <button id="changePinBtn" style="width:100%; background:var(--accent-color); border:none; padding:0.5rem; border-radius:1rem; color:white;">Сменить PIN</button>
-        </div>
-        <div class="modal-setting">
-            <label>Оттенок</label>
-            <select id="accentSelect" class="accent-select">
-                <option value="blue">Синий</option>
-                <option value="indigo">Индиго</option>
-                <option value="purple">Фиолетовый</option>
-                <option value="pink">Розовый</option>
-                <option value="red">Красный</option>
-                <option value="orange">Оранжевый</option>
-                <option value="beige">Бежевый</option>
-                <option value="yellow">Жёлтый</option>
-                <option value="mint">Мятный</option>
-                <option value="teal">Бирюзовый</option>
-                <option value="gray">Светло-серый</option>
-            </select>
-        </div>
-        <button class="modal-close" id="closeModalBtn" style="width:100%; padding:0.7rem; background:none; border:1px solid var(--border-light); border-radius:1rem; color:var(--text-secondary); margin-top:0.5rem;">Закрыть</button>
-    </div>
-</div>
-
+<!-- Модальные окна -->
+<div id="settingsModal" class="modal"><div class="modal-content"><h3>Настройки</h3><div class="modal-setting"><label>Ваш ник</label><div id="displayNickWithTag" class="nick-readonly"></div><button id="changeNickBtn" style="margin-top:8px; width:100%; background:var(--accent-color); border:none; padding:0.5rem; border-radius:1rem; color:white;">Изменить ник</button></div><div class="modal-setting"><label>Сменить PIN</label><button id="changePinBtn" style="width:100%; background:var(--accent-color); border:none; padding:0.5rem; border-radius:1rem; color:white;">Сменить PIN</button></div><div class="modal-setting"><label>Оттенок</label><select id="accentSelect" class="accent-select"><option value="blue">Синий</option><option value="indigo">Индиго</option><option value="purple">Фиолетовый</option><option value="pink">Розовый</option><option value="red">Красный</option><option value="orange">Оранжевый</option><option value="beige">Бежевый</option><option value="yellow">Жёлтый</option><option value="mint">Мятный</option><option value="teal">Бирюзовый</option><option value="gray">Светло-серый</option></select></div><button class="modal-close" id="closeModalBtn" style="width:100%; padding:0.7rem; background:none; border:1px solid var(--border-light); border-radius:1rem; color:var(--text-secondary); margin-top:0.5rem;">Закрыть</button></div></div>
 <div id="changeNickModal" class="modal"><div class="modal-content"><h3>Смена ника</h3><div class="modal-setting"><label>Новый ник</label><input type="text" id="newNickInput" placeholder="Новый ник"></div><div class="modal-buttons"><button id="applyNickBtn">Применить</button><button id="cancelNickBtn">Закрыть</button></div></div></div>
 <div id="changePinModal" class="modal"><div class="modal-content"><h3>Смена PIN</h3><div class="modal-setting"><label>Старый PIN</label><input type="password" id="oldPinInput" placeholder="Старый PIN" maxlength="4" inputmode="numeric"></div><div class="modal-setting"><label>Новый PIN</label><input type="password" id="newPinInput" placeholder="Новый PIN" maxlength="4" inputmode="numeric"></div><div class="modal-buttons"><button id="applyPinBtn">Применить</button><button id="cancelPinBtn">Закрыть</button></div></div></div>
 <div id="mailsModal" class="modal"><div class="modal-content" style="max-width:400px;"><h3>Письма</h3><div id="mailsList" class="mails-list"></div><div class="modal-buttons"><button id="newMailBtn">Написать</button><button id="closeMailsBtn">Закрыть</button></div></div></div>
@@ -261,9 +223,8 @@
     let unreadMailsCount = 0;
     let currentMails = [];
     let currentMailForReply = null;
-    let editingMessageId = null; // для редактирования
+    let editingMessageId = null;
 
-    // ---------- Вспомогательные ----------
     function escapeHtml(str) { return str.replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'})[m]); }
     function splitFullNick(full) { const h=full.lastIndexOf('#'); if(h===-1) return {nick:full,tag:''}; return {nick:full.slice(0,h),tag:full.slice(h)}; }
 
@@ -285,10 +246,12 @@
         localStorage.setItem('simply_settings', JSON.stringify(appSettings));
     }
 
-    // ---------- Рендер сообщений (с кнопкой многоточия, лайками, редактированием) ----------
+    // Рендер сообщений
+    let isUserScrolling = false;
     function renderMessages() {
         const container = document.getElementById('messagesContainer');
         if (!container) return;
+        const wasNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 100;
         container.innerHTML = '';
         messages.forEach(msg => {
             const isOwn = currentUser && msg.full_nick === currentUser.full_nick;
@@ -299,16 +262,13 @@
             msgDiv.setAttribute('data-id', msg.id);
             msgDiv.setAttribute('data-full-nick', msg.full_nick);
             msgDiv.setAttribute('data-text', msg.text);
-            // Если сообщение редактируется – показываем поле ввода
             if (editingMessageId === msg.id) {
                 msgDiv.innerHTML = `
-                    <div class="message-header">
-                        <div class="message-nick"><span class="nick-main">${escapeHtml(nick)}</span><span class="nick-tag">${escapeHtml(tag)}</span></div>
-                    </div>
+                    <div class="message-header"><div class="message-nick"><span class="nick-main">${escapeHtml(nick)}</span><span class="nick-tag">${escapeHtml(tag)}</span></div></div>
                     <textarea id="edit-textarea-${msg.id}" style="width:100%; background:#2c2c2e; border:1px solid var(--border-light); border-radius:1rem; padding:0.5rem; margin-bottom:0.5rem; color:white;">${escapeHtml(msg.text)}</textarea>
                     <div style="display:flex; gap:8px; justify-content:flex-end;">
-                        <button class="edit-cancel" data-id="${msg.id}" style="background:none; border:1px solid var(--border-light); border-radius:1rem; padding:0.3rem 0.8rem; color:var(--text-secondary);">✖</button>
-                        <button class="edit-save" data-id="${msg.id}" style="background:var(--accent-color); border:none; border-radius:1rem; padding:0.3rem 0.8rem; color:white;">✓</button>
+                        <button class="edit-cancel" data-id="${msg.id}">✖</button>
+                        <button class="edit-save" data-id="${msg.id}">✓</button>
                     </div>
                     <div class="message-divider"></div>
                 `;
@@ -321,345 +281,151 @@
                     <div class="message-text">${escapeHtml(msg.text)}</div>
                     ${msg.edited ? '<div class="edited-badge">изменено</div>' : ''}
                     <div class="message-footer">
-                        <button class="like-btn ${msg.is_liked ? 'liked' : ''}" data-id="${msg.id}">
-                            <svg viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" fill="none"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
-                            <span class="likes-count">${msg.likes_count || 0}</span>
-                        </button>
+                        ${msg.likes_count > 0 ? `<button class="like-btn ${msg.is_liked ? 'liked' : ''}" data-id="${msg.id}"><svg viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" fill="none"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg><span class="likes-count">${msg.likes_count}</span></button>` : ''}
                     </div>
                     <div class="message-divider"></div>
                 `;
             }
             container.appendChild(msgDiv);
         });
-        // Обработчики лайков
-        document.querySelectorAll('.like-btn').forEach(btn => {
-            btn.addEventListener('click', async (e) => {
-                e.stopPropagation();
-                const messageId = parseInt(btn.dataset.id);
-                await toggleLike(messageId);
-            });
-        });
-        // Обработчики кнопок многоточия (контекстное меню)
-        document.querySelectorAll('.message-actions-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const msgId = parseInt(btn.dataset.id);
-                const full_nick = btn.dataset.fullNick;
-                const text = btn.dataset.text;
-                const isOwn = full_nick === currentUser.full_nick;
-                showContextMenu(e, msgId, full_nick, text, isOwn);
-            });
-        });
-        // Обработчики редактирования (сохранение/отмена)
-        document.querySelectorAll('.edit-save').forEach(btn => {
-            btn.addEventListener('click', async () => {
-                const msgId = parseInt(btn.dataset.id);
-                const textarea = document.getElementById(`edit-textarea-${msgId}`);
-                const newText = textarea.value.trim();
-                if (newText && newText !== messages.find(m => m.id === msgId)?.text) {
-                    await fetch('/edit-message', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ messageId: msgId, full_nick: currentUser.full_nick, newText })
-                    });
-                }
-                editingMessageId = null;
-                await loadHistory();
-            });
-        });
-        document.querySelectorAll('.edit-cancel').forEach(btn => {
-            btn.addEventListener('click', () => {
-                editingMessageId = null;
-                renderMessages();
-            });
-        });
-        // Прокрутка вниз только при новых сообщениях, не при лайках
-        const shouldScroll = Math.abs(container.scrollHeight - container.scrollTop - container.clientHeight) < 100;
-        if (shouldScroll) container.scrollTop = container.scrollHeight;
-        updateScrollDownButton();
+        // Обработчики
+        document.querySelectorAll('.like-btn').forEach(btn => btn.addEventListener('click', async (e) => { e.stopPropagation(); await toggleLike(parseInt(btn.dataset.id)); }));
+        document.querySelectorAll('.message-actions-btn').forEach(btn => btn.addEventListener('click', (e) => { e.stopPropagation(); const id=parseInt(btn.dataset.id), full=btn.dataset.fullNick, text=btn.dataset.text, isOwn=full===currentUser.full_nick; showContextMenu(e, id, full, text, isOwn); }));
+        document.querySelectorAll('.edit-save').forEach(btn => btn.addEventListener('click', async () => { const id=parseInt(btn.dataset.id), textarea=document.getElementById(`edit-textarea-${id}`), newText=textarea.value.trim(); if(newText && newText!==messages.find(m=>m.id===id)?.text){ await fetch('/edit-message',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messageId:id,full_nick:currentUser.full_nick,newText})}); } editingMessageId=null; await loadHistory(); }));
+        document.querySelectorAll('.edit-cancel').forEach(btn => btn.addEventListener('click', () => { editingMessageId=null; renderMessages(); }));
+        if (wasNearBottom && !isUserScrolling) container.scrollTop = container.scrollHeight;
+        else if (!isUserScrolling && !wasNearBottom) { /* не трогаем */ }
     }
 
     async function toggleLike(messageId) {
         try {
-            const res = await fetch('/like', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ messageId, full_nick: currentUser.full_nick })
-            });
+            const res = await fetch('/like', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ messageId, full_nick: currentUser.full_nick }) });
             const data = await res.json();
-            if (data.success) {
-                const msg = messages.find(m => m.id === messageId);
-                if (msg) {
-                    msg.likes_count = data.likes_count;
-                    msg.is_liked = !msg.is_liked;
-                    renderMessages();
-                }
-            }
-        } catch(e) { console.error(e); }
+            if(data.success) { const msg=messages.find(m=>m.id===messageId); if(msg){ msg.likes_count=data.likes_count; msg.is_liked=!msg.is_liked; renderMessages(); } }
+        } catch(e){ console.error(e); }
     }
 
-    // Контекстное меню (кнопка многоточие)
-    let activeContextMenu = null;
     function showContextMenu(e, messageId, full_nick, text, isOwn) {
-        if (activeContextMenu) activeContextMenu.remove();
+        if(activeContextMenu) activeContextMenu.remove();
         const rect = e.target.closest('.message-actions-btn').getBoundingClientRect();
-        const menu = document.createElement('div');
-        menu.className = 'context-menu';
-        menu.style.left = rect.right - 180 + 'px';
-        menu.style.top = rect.bottom + 5 + 'px';
-        let buttons = `
-            <div class="message-preview">${escapeHtml(text.substring(0, 80))}${text.length > 80 ? '…' : ''}</div>
-            <button id="ctx-like">❤️ Лайкнуть</button>
-            <button id="ctx-copy">📋 Скопировать</button>
-        `;
-        if (isOwn) {
-            buttons += `<button id="ctx-edit">✏️ Редактировать</button>
-                        <button id="ctx-delete">🗑 Удалить</button>`;
-        }
+        const menu = document.createElement('div'); menu.className='context-menu';
+        menu.style.left = rect.right - 180 + 'px'; menu.style.top = rect.bottom + 5 + 'px';
+        let buttons = `<div class="message-preview">${escapeHtml(text.substring(0,80))}${text.length>80?'…':''}</div><button id="ctx-like">❤️ Лайкнуть</button><button id="ctx-copy">📋 Скопировать</button>`;
+        if(isOwn) buttons += `<button id="ctx-edit">✏️ Редактировать</button><button id="ctx-delete">🗑 Удалить</button>`;
         buttons += `<button id="ctx-close">✖ Закрыть</button>`;
-        menu.innerHTML = buttons;
-        document.body.appendChild(menu);
-        activeContextMenu = menu;
-        document.getElementById('ctx-like')?.addEventListener('click', async () => {
-            await toggleLike(messageId);
-            menu.remove(); activeContextMenu = null;
-        });
-        document.getElementById('ctx-copy')?.addEventListener('click', () => {
-            navigator.clipboard.writeText(text);
-            menu.remove(); activeContextMenu = null;
-        });
-        document.getElementById('ctx-edit')?.addEventListener('click', () => {
-            editingMessageId = messageId;
-            renderMessages();
-            menu.remove(); activeContextMenu = null;
-        });
-        document.getElementById('ctx-delete')?.addEventListener('click', async () => {
-            if (confirm('Удалить сообщение?')) {
-                await fetch('/delete-message', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ full_nick: currentUser.full_nick, messageId })
-                });
-            }
-            menu.remove(); activeContextMenu = null;
-        });
-        document.getElementById('ctx-close')?.addEventListener('click', () => {
-            menu.remove(); activeContextMenu = null;
-        });
-        const closeMenu = (e) => { if (menu && !menu.contains(e.target)) { menu.remove(); activeContextMenu = null; document.removeEventListener('click', closeMenu); } };
-        setTimeout(() => document.addEventListener('click', closeMenu), 10);
-    }
-
-    // Кнопка прокрутки вниз
-    function updateScrollDownButton() {
-        const container = document.getElementById('messagesContainer');
-        const btn = document.getElementById('scrollDownBtn');
-        if (!container || !btn) return;
-        const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 100;
-        btn.style.display = isNearBottom ? 'none' : 'flex';
+        menu.innerHTML = buttons; document.body.appendChild(menu); activeContextMenu=menu;
+        document.getElementById('ctx-like')?.addEventListener('click',async()=>{ await toggleLike(messageId); menu.remove(); activeContextMenu=null; });
+        document.getElementById('ctx-copy')?.addEventListener('click',()=>{ navigator.clipboard.writeText(text); menu.remove(); activeContextMenu=null; });
+        document.getElementById('ctx-edit')?.addEventListener('click',()=>{ editingMessageId=messageId; renderMessages(); menu.remove(); activeContextMenu=null; });
+        document.getElementById('ctx-delete')?.addEventListener('click',async()=>{ if(confirm('Удалить сообщение?')){ await fetch('/delete-message',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({full_nick:currentUser.full_nick,messageId})}); } menu.remove(); activeContextMenu=null; });
+        document.getElementById('ctx-close')?.addEventListener('click',()=>{ menu.remove(); activeContextMenu=null; });
+        const closeMenu = (e)=>{ if(menu && !menu.contains(e.target)){ menu.remove(); activeContextMenu=null; document.removeEventListener('click',closeMenu); } };
+        setTimeout(()=>document.addEventListener('click',closeMenu),10);
     }
 
     async function loadHistory() {
-        try {
-            const res = await fetch(`/messages?full_nick=${encodeURIComponent(currentUser.full_nick)}`);
-            const data = await res.json();
-            messages = data;
-            renderMessages();
-        } catch(e) { console.error(e); }
+        try { const res = await fetch(`/messages?full_nick=${encodeURIComponent(currentUser.full_nick)}`); const data = await res.json(); messages = data; renderMessages(); } catch(e){ console.error(e); }
     }
 
     // Письма
     async function loadMails() {
-        const res = await fetch(`/mails?full_nick=${encodeURIComponent(currentUser.full_nick)}`);
-        const data = await res.json();
-        currentMails = data;
-        unreadMailsCount = data.filter(m => !m.is_read).length;
-        const mailsBtn = document.getElementById('mailsBtn');
-        if (unreadMailsCount > 0) mailsBtn.classList.add('has-unread');
-        else mailsBtn.classList.remove('has-unread');
-        renderMailsList();
+        const res = await fetch(`/mails?full_nick=${encodeURIComponent(currentUser.full_nick)}`); const data = await res.json(); currentMails = data; unreadMailsCount = data.filter(m=>!m.is_read).length;
+        const mailsBtn = document.getElementById('mailsBtn'); if(unreadMailsCount>0) mailsBtn.classList.add('has-unread'); else mailsBtn.classList.remove('has-unread'); renderMailsList();
     }
     function renderMailsList() {
-        const container = document.getElementById('mailsList');
-        if (!container) return;
-        if (currentMails.length === 0) { container.innerHTML = '<div style="text-align:center; padding:1rem;">Нет писем</div>'; return; }
+        const container = document.getElementById('mailsList'); if(!container) return;
+        if(currentMails.length===0){ container.innerHTML='<div style="text-align:center; padding:1rem;">Нет писем</div>'; return; }
         container.innerHTML = '';
-        currentMails.forEach(mail => {
-            const { nick, tag } = splitFullNick(mail.from_full_nick);
-            const mailDiv = document.createElement('div');
-            mailDiv.className = `mail-item ${!mail.is_read ? 'unread' : ''}`;
-            mailDiv.innerHTML = `
-                <div class="mail-header"><span>${escapeHtml(nick)}${escapeHtml(tag)}</span><span>${new Date(mail.created_at).toLocaleString().slice(0,-3)}</span></div>
-                <div class="mail-snippet">${escapeHtml(mail.text.substring(0, 100))}${mail.text.length > 100 ? '…' : ''}</div>
-                <div class="mail-actions">
-                    <button data-id="${mail.id}" class="read-mail">Прочитать</button>
-                    <button data-id="${mail.id}" class="reply-mail">Ответить</button>
-                    <button data-id="${mail.id}" class="delete-mail">Удалить</button>
-                </div>
-            `;
+        currentMails.forEach(mail=>{ const {nick,tag}=splitFullNick(mail.from_full_nick); const mailDiv=document.createElement('div'); mailDiv.className=`mail-item ${!mail.is_read?'unread':''}`;
+            mailDiv.innerHTML=`<div class="mail-header"><span>${escapeHtml(nick)}${escapeHtml(tag)}</span><span>${new Date(mail.created_at).toLocaleString().slice(0,-3)}</span></div><div class="mail-snippet">${escapeHtml(mail.text.substring(0,100))}${mail.text.length>100?'…':''}</div><div class="mail-actions"><button data-id="${mail.id}" class="read-mail">Прочитать</button><button data-id="${mail.id}" class="reply-mail">Ответить</button><button data-id="${mail.id}" class="delete-mail">Удалить</button></div>`;
             container.appendChild(mailDiv);
         });
-        document.querySelectorAll('.read-mail').forEach(btn => btn.addEventListener('click', () => openMail(parseInt(btn.dataset.id))));
-        document.querySelectorAll('.reply-mail').forEach(btn => btn.addEventListener('click', () => openReplyMail(parseInt(btn.dataset.id))));
-        document.querySelectorAll('.delete-mail').forEach(btn => btn.addEventListener('click', async () => {
-            const id = parseInt(btn.dataset.id);
-            await fetch('/delete-mail', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mailId: id, full_nick: currentUser.full_nick }) });
-            await loadMails();
-        }));
+        document.querySelectorAll('.read-mail').forEach(btn=>btn.addEventListener('click',()=>openMail(parseInt(btn.dataset.id))));
+        document.querySelectorAll('.reply-mail').forEach(btn=>btn.addEventListener('click',()=>openReplyMail(parseInt(btn.dataset.id))));
+        document.querySelectorAll('.delete-mail').forEach(btn=>btn.addEventListener('click',async()=>{ const id=parseInt(btn.dataset.id); await fetch('/delete-mail',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mailId:id,full_nick:currentUser.full_nick})}); await loadMails(); }));
     }
-    async function openMail(mailId) {
-        const mail = currentMails.find(m => m.id === mailId);
-        if (!mail) return;
-        if (!mail.is_read) {
-            await fetch('/read-mail', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mailId, full_nick: currentUser.full_nick }) });
-            mail.is_read = true;
-            await loadMails();
-        }
-        const { nick, tag } = splitFullNick(mail.from_full_nick);
-        document.getElementById('viewMailContent').innerHTML = `<strong>${escapeHtml(nick)}${escapeHtml(tag)}</strong><br>${new Date(mail.created_at).toLocaleString().slice(0,-3)}<br><br>${escapeHtml(mail.text)}`;
-        document.getElementById('viewMailModal').style.display = 'flex';
-        currentMailForReply = mail;
-    }
-    function openReplyMail(mailId) {
-        const mail = currentMails.find(m => m.id === mailId);
-        if (!mail) return;
-        const { nick, tag } = splitFullNick(mail.from_full_nick);
-        document.getElementById('originalMailPreview').innerHTML = `<strong>${escapeHtml(nick)}${escapeHtml(tag)}</strong><br>${escapeHtml(mail.text)}`;
-        document.getElementById('replyMailText').value = '';
-        document.getElementById('replyMailModal').style.display = 'flex';
-        currentMailForReply = mail;
-    }
-    async function sendNewMail(to, text) {
-        const res = await fetch('/send-mail', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ from_full_nick: currentUser.full_nick, to_full_nick: to, text }) });
-        const data = await res.json();
-        if (data.success) { alert('Письмо отправлено'); document.getElementById('newMailModal').style.display = 'none'; }
-        else alert(data.error || 'Ошибка');
-    }
-    async function sendReply(replyText) {
-        if (!currentMailForReply) return;
-        const res = await fetch('/reply-mail', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ from_full_nick: currentUser.full_nick, to_full_nick: currentMailForReply.from_full_nick, replyText }) });
-        const data = await res.json();
-        if (data.success) { alert('Ответ отправлен'); document.getElementById('replyMailModal').style.display = 'none'; await loadMails(); }
-        else alert(data.error || 'Ошибка');
-    }
+    async function openMail(mailId){ const mail=currentMails.find(m=>m.id===mailId); if(!mail) return; if(!mail.is_read){ await fetch('/read-mail',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mailId,full_nick:currentUser.full_nick})}); mail.is_read=true; await loadMails(); } const {nick,tag}=splitFullNick(mail.from_full_nick); document.getElementById('viewMailContent').innerHTML=`<strong>${escapeHtml(nick)}${escapeHtml(tag)}</strong><br>${new Date(mail.created_at).toLocaleString().slice(0,-3)}<br><br>${escapeHtml(mail.text)}`; document.getElementById('viewMailModal').style.display='flex'; currentMailForReply=mail; }
+    function openReplyMail(mailId){ const mail=currentMails.find(m=>m.id===mailId); if(!mail) return; const {nick,tag}=splitFullNick(mail.from_full_nick); document.getElementById('originalMailPreview').innerHTML=`<strong>${escapeHtml(nick)}${escapeHtml(tag)}</strong><br>${escapeHtml(mail.text)}`; document.getElementById('replyMailText').value=''; document.getElementById('replyMailModal').style.display='flex'; currentMailForReply=mail; }
+    async function sendNewMail(to,text){ const res=await fetch('/send-mail',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({from_full_nick:currentUser.full_nick,to_full_nick:to,text})}); const data=await res.json(); if(data.success){ alert('Письмо отправлено'); document.getElementById('newMailModal').style.display='none'; } else alert(data.error||'Ошибка'); }
+    async function sendReply(replyText){ if(!currentMailForReply) return; const res=await fetch('/reply-mail',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({from_full_nick:currentUser.full_nick,to_full_nick:currentMailForReply.from_full_nick,replyText})}); const data=await res.json(); if(data.success){ alert('Ответ отправлен'); document.getElementById('replyMailModal').style.display='none'; await loadMails(); } else alert(data.error||'Ошибка'); }
 
     // Смена ника и PIN
-    async function changeNick(newNick) {
-        const res = await fetch('/change-nick', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: authToken, newNick }) });
-        const data = await res.json();
-        if (data.success) { currentUser.full_nick = data.newFullNick; localStorage.setItem('simply_nick', newNick); await loadHistory(); updateSettingsUI(); alert('Ник изменён'); }
-        else alert(data.error || 'Ошибка');
-    }
-    async function changePin(oldPin, newPin) {
-        const res = await fetch('/change-pin', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: authToken, oldPin, newPin }) });
-        const data = await res.json();
-        if (data.success) alert('PIN изменён');
-        else alert(data.error || 'Ошибка');
-    }
-    function updateSettingsUI() {
-        const { nick, tag } = splitFullNick(currentUser.full_nick);
-        document.getElementById('displayNickWithTag').innerHTML = `${escapeHtml(nick)}<span style="color:#6c6c70;">${escapeHtml(tag)}</span>`;
-    }
+    async function changeNick(newNick){ const res=await fetch('/change-nick',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:authToken,newNick})}); const data=await res.json(); if(data.success){ currentUser.full_nick=data.newFullNick; localStorage.setItem('simply_nick',newNick); await loadHistory(); updateSettingsUI(); alert('Ник изменён'); } else alert(data.error||'Ошибка'); }
+    async function changePin(oldPin,newPin){ const res=await fetch('/change-pin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:authToken,oldPin,newPin})}); const data=await res.json(); if(data.success) alert('PIN изменён'); else alert(data.error||'Ошибка'); }
+    function updateSettingsUI(){ const {nick,tag}=splitFullNick(currentUser.full_nick); document.getElementById('displayNickWithTag').innerHTML=`${escapeHtml(nick)}<span style="color:#6c6c70;">${escapeHtml(tag)}</span>`; }
 
     // Авторизация
-    async function authWithPin(nick, pin) {
-        try {
-            const res = await fetch('/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nick, pin }) });
-            const data = await res.json();
-            if (data.success) {
-                currentUser.full_nick = data.full_nick; authToken = data.token;
-                localStorage.setItem('simply_token', authToken); localStorage.setItem('simply_nick', nick);
-                document.getElementById('loginScreen').style.display = 'none';
-                document.getElementById('appContainer').style.display = 'flex';
-                if (socket) socket.disconnect();
-                socket = io();
-                socket.on('message received', (newMsg) => { messages.push(newMsg); renderMessages(); });
-                socket.on('message deleted', (msgId) => { messages = messages.filter(m => m.id !== msgId); renderMessages(); });
-                socket.on('message edited', ({ messageId, newText }) => { const msg = messages.find(m => m.id === messageId); if (msg) { msg.text = newText; msg.edited = true; renderMessages(); } });
-                socket.on('like updated', ({ messageId, likes_count, is_liked }) => { const msg = messages.find(m => m.id === messageId); if (msg) { msg.likes_count = likes_count; msg.is_liked = is_liked; renderMessages(); } });
-                socket.on('nick changed', ({ oldFullNick, newFullNick }) => { messages.forEach(msg => { if (msg.full_nick === oldFullNick) msg.full_nick = newFullNick; }); if (currentUser.full_nick === oldFullNick) currentUser.full_nick = newFullNick; renderMessages(); updateSettingsUI(); });
-                socket.on('new mail', ({ to_full_nick }) => { if (to_full_nick === currentUser.full_nick) loadMails(); });
+    async function authWithPin(nick,pin){
+        try{ const res=await fetch('/auth',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nick,pin})}); const data=await res.json();
+            if(data.success){ currentUser.full_nick=data.full_nick; authToken=data.token; localStorage.setItem('simply_token',authToken); localStorage.setItem('simply_nick',nick); document.getElementById('loginScreen').style.display='none'; document.getElementById('appContainer').style.display='flex';
+                if(socket) socket.disconnect(); socket=io();
+                socket.on('message received',(newMsg)=>{ messages.push(newMsg); renderMessages(); });
+                socket.on('message deleted',(msgId)=>{ messages=messages.filter(m=>m.id!==msgId); renderMessages(); });
+                socket.on('message edited',({messageId,newText})=>{ const msg=messages.find(m=>m.id===messageId); if(msg){ msg.text=newText; msg.edited=true; renderMessages(); } });
+                socket.on('like updated',({messageId,likes_count,is_liked})=>{ const msg=messages.find(m=>m.id===messageId); if(msg){ msg.likes_count=likes_count; msg.is_liked=is_liked; renderMessages(); } });
+                socket.on('nick changed',({oldFullNick,newFullNick})=>{ messages.forEach(m=>{ if(m.full_nick===oldFullNick) m.full_nick=newFullNick; }); if(currentUser.full_nick===oldFullNick) currentUser.full_nick=newFullNick; renderMessages(); updateSettingsUI(); });
+                socket.on('new mail',({to_full_nick})=>{ if(to_full_nick===currentUser.full_nick) loadMails(); });
                 await loadHistory(); await loadMails();
                 return true;
-            } else { document.getElementById('loginError').innerText = data.error || 'Ошибка входа'; return false; }
-        } catch(e) { document.getElementById('loginError').innerText = 'Ошибка соединения'; return false; }
+            } else { document.getElementById('loginError').innerText=data.error||'Ошибка входа'; return false; }
+        } catch(e){ document.getElementById('loginError').innerText='Ошибка соединения'; return false; }
     }
-    async function verifyToken() {
-        const token = localStorage.getItem('simply_token');
-        if (!token) return false;
-        try {
-            const res = await fetch('/verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token }) });
-            const data = await res.json();
-            if (data.success) {
-                currentUser.full_nick = data.full_nick; authToken = token;
-                document.getElementById('loginScreen').style.display = 'none';
-                document.getElementById('appContainer').style.display = 'flex';
-                if (socket) socket.disconnect();
-                socket = io();
-                socket.on('message received', (newMsg) => { messages.push(newMsg); renderMessages(); });
-                socket.on('message deleted', (msgId) => { messages = messages.filter(m => m.id !== msgId); renderMessages(); });
-                socket.on('message edited', ({ messageId, newText }) => { const msg = messages.find(m => m.id === messageId); if (msg) { msg.text = newText; msg.edited = true; renderMessages(); } });
-                socket.on('like updated', ({ messageId, likes_count, is_liked }) => { const msg = messages.find(m => m.id === messageId); if (msg) { msg.likes_count = likes_count; msg.is_liked = is_liked; renderMessages(); } });
-                socket.on('nick changed', ({ oldFullNick, newFullNick }) => { messages.forEach(msg => { if (msg.full_nick === oldFullNick) msg.full_nick = newFullNick; }); if (currentUser.full_nick === oldFullNick) currentUser.full_nick = newFullNick; renderMessages(); updateSettingsUI(); });
-                socket.on('new mail', ({ to_full_nick }) => { if (to_full_nick === currentUser.full_nick) loadMails(); });
+    async function verifyToken(){
+        const token=localStorage.getItem('simply_token'); if(!token) return false;
+        try{ const res=await fetch('/verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token})}); const data=await res.json();
+            if(data.success){ currentUser.full_nick=data.full_nick; authToken=token; document.getElementById('loginScreen').style.display='none'; document.getElementById('appContainer').style.display='flex';
+                if(socket) socket.disconnect(); socket=io();
+                socket.on('message received',(newMsg)=>{ messages.push(newMsg); renderMessages(); });
+                socket.on('message deleted',(msgId)=>{ messages=messages.filter(m=>m.id!==msgId); renderMessages(); });
+                socket.on('message edited',({messageId,newText})=>{ const msg=messages.find(m=>m.id===messageId); if(msg){ msg.text=newText; msg.edited=true; renderMessages(); } });
+                socket.on('like updated',({messageId,likes_count,is_liked})=>{ const msg=messages.find(m=>m.id===messageId); if(msg){ msg.likes_count=likes_count; msg.is_liked=is_liked; renderMessages(); } });
+                socket.on('nick changed',({oldFullNick,newFullNick})=>{ messages.forEach(m=>{ if(m.full_nick===oldFullNick) m.full_nick=newFullNick; }); if(currentUser.full_nick===oldFullNick) currentUser.full_nick=newFullNick; renderMessages(); updateSettingsUI(); });
+                socket.on('new mail',({to_full_nick})=>{ if(to_full_nick===currentUser.full_nick) loadMails(); });
                 await loadHistory(); await loadMails();
                 return true;
             }
-        } catch(e) {}
+        } catch(e){}
         return false;
     }
 
-    function sendMessage() {
-        const input = document.getElementById('messageInput');
-        const text = input.value;
-        if (!text.trim() || !socket || !currentUser.full_nick) return;
-        socket.emit('new message', { full_nick: currentUser.full_nick, text });
-        input.value = ''; input.style.height = 'auto'; input.focus();
+    function sendMessage(){
+        const input=document.getElementById('messageInput'); const text=input.value;
+        if(!text.trim() || !socket || !currentUser.full_nick) return;
+        socket.emit('new message',{full_nick:currentUser.full_nick,text});
+        input.value=''; input.style.height='auto'; input.focus();
     }
-    function autoResizeTextarea() {
-        const textarea = document.getElementById('messageInput');
-        textarea.style.height = 'auto'; textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
+    function autoResizeTextarea(){
+        const textarea=document.getElementById('messageInput');
+        textarea.style.height='auto'; textarea.style.height=Math.min(textarea.scrollHeight,120)+'px';
     }
+    let activeContextMenu=null;
+    window.onload=async()=>{
+        applyAccent(appSettings.accent); document.getElementById('accentSelect').value=appSettings.accent; document.getElementById('accentSelect').onchange=e=>applyAccent(e.target.value);
+        const logged=await verifyToken();
+        if(!logged){ document.getElementById('loginScreen').style.display='flex'; document.getElementById('appContainer').style.display='none'; }
+        else{ document.getElementById('loginScreen').style.display='none'; document.getElementById('appContainer').style.display='flex'; updateSettingsUI(); }
 
-    window.onload = async () => {
-        applyAccent(appSettings.accent);
-        document.getElementById('accentSelect').value = appSettings.accent;
-        document.getElementById('accentSelect').onchange = (e) => applyAccent(e.target.value);
-        const logged = await verifyToken();
-        if (!logged) { document.getElementById('loginScreen').style.display = 'flex'; document.getElementById('appContainer').style.display = 'none'; }
-        else { document.getElementById('loginScreen').style.display = 'none'; document.getElementById('appContainer').style.display = 'flex'; updateSettingsUI(); }
-
-        document.getElementById('loginBtn').onclick = () => {
-            const nick = document.getElementById('loginNick').value.trim();
-            const pin = document.getElementById('loginPin').value;
-            if (!nick || !pin || pin.length !== 4 || !/^\d+$/.test(pin)) { document.getElementById('loginError').innerText = 'Введите ник и 4-значный PIN'; return; }
-            authWithPin(nick, pin);
-        };
-        document.getElementById('sendBtn').onclick = sendMessage;
-        const msgInput = document.getElementById('messageInput');
-        msgInput.addEventListener('input', autoResizeTextarea);
-        msgInput.addEventListener('keypress', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); const start=msgInput.selectionStart, end=msgInput.selectionEnd; msgInput.value=msgInput.value.substring(0,start)+'\n'+msgInput.value.substring(end); msgInput.selectionStart=msgInput.selectionEnd=start+1; autoResizeTextarea(); } });
-        document.getElementById('messagesContainer').addEventListener('scroll', () => updateScrollDownButton());
-        document.getElementById('scrollDownBtn').onclick = () => { const container = document.getElementById('messagesContainer'); container.scrollTop = container.scrollHeight; };
-        // Модальные окна
-        const settingsModal = document.getElementById('settingsModal');
-        document.getElementById('settingsBtn').onclick = () => settingsModal.style.display = 'flex';
-        document.getElementById('closeModalBtn').onclick = () => settingsModal.style.display = 'none';
-        document.getElementById('changeNickBtn').onclick = () => document.getElementById('changeNickModal').style.display = 'flex';
-        document.getElementById('changePinBtn').onclick = () => document.getElementById('changePinModal').style.display = 'flex';
-        document.getElementById('applyNickBtn').onclick = async () => { const newNick = document.getElementById('newNickInput').value.trim(); if (newNick) await changeNick(newNick); document.getElementById('changeNickModal').style.display = 'none'; document.getElementById('newNickInput').value = ''; };
-        document.getElementById('cancelNickBtn').onclick = () => document.getElementById('changeNickModal').style.display = 'none';
-        document.getElementById('applyPinBtn').onclick = async () => { const oldPin = document.getElementById('oldPinInput').value, newPin = document.getElementById('newPinInput').value; if (oldPin && newPin && newPin.length===4 && /^\d+$/.test(newPin)) { await changePin(oldPin, newPin); document.getElementById('changePinModal').style.display = 'none'; document.getElementById('oldPinInput').value = ''; document.getElementById('newPinInput').value = ''; } else alert('PIN должен быть 4 цифры'); };
-        document.getElementById('cancelPinBtn').onclick = () => document.getElementById('changePinModal').style.display = 'none';
-        document.getElementById('mailsBtn').onclick = async () => { await loadMails(); document.getElementById('mailsModal').style.display = 'flex'; };
-        document.getElementById('closeMailsBtn').onclick = () => document.getElementById('mailsModal').style.display = 'none';
-        document.getElementById('newMailBtn').onclick = () => document.getElementById('newMailModal').style.display = 'flex';
-        document.getElementById('cancelMailBtn').onclick = () => document.getElementById('newMailModal').style.display = 'none';
-        document.getElementById('sendMailBtn').onclick = async () => { const to = document.getElementById('mailTo').value.trim(), text = document.getElementById('mailText').value.trim(); if (!to || !text) { alert('Заполните поля'); return; } await sendNewMail(to, text); document.getElementById('mailTo').value = ''; document.getElementById('mailText').value = ''; document.getElementById('newMailModal').style.display = 'none'; await loadMails(); };
-        document.getElementById('closeViewMailBtn').onclick = () => document.getElementById('viewMailModal').style.display = 'none';
-        document.getElementById('replyMailBtn').onclick = () => { document.getElementById('viewMailModal').style.display = 'none'; if (currentMailForReply) { const { nick, tag } = splitFullNick(currentMailForReply.from_full_nick); document.getElementById('originalMailPreview').innerHTML = `<strong>${escapeHtml(nick)}${escapeHtml(tag)}</strong><br>${escapeHtml(currentMailForReply.text)}`; document.getElementById('replyMailText').value = ''; document.getElementById('replyMailModal').style.display = 'flex'; } };
-        document.getElementById('cancelReplyBtn').onclick = () => document.getElementById('replyMailModal').style.display = 'none';
-        document.getElementById('sendReplyBtn').onclick = async () => { const replyText = document.getElementById('replyMailText').value.trim(); if (!replyText) { alert('Введите текст ответа'); return; } await sendReply(replyText); document.getElementById('replyMailModal').style.display = 'none'; await loadMails(); };
+        document.getElementById('loginBtn').onclick=()=>{ const nick=document.getElementById('loginNick').value.trim(), pin=document.getElementById('loginPin').value; if(!nick||!pin||pin.length!==4||!/^\d+$/.test(pin)){ document.getElementById('loginError').innerText='Введите ник и 4-значный PIN'; return; } authWithPin(nick,pin); };
+        document.getElementById('sendBtn').onclick=sendMessage;
+        const msgInput=document.getElementById('messageInput'); msgInput.addEventListener('input',autoResizeTextarea);
+        msgInput.addEventListener('keypress',(e)=>{ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); const start=msgInput.selectionStart, end=msgInput.selectionEnd; msgInput.value=msgInput.value.substring(0,start)+'\n'+msgInput.value.substring(end); msgInput.selectionStart=msgInput.selectionEnd=start+1; autoResizeTextarea(); } });
+        document.getElementById('messagesContainer').addEventListener('scroll',()=>{ isUserScrolling=true; clearTimeout(window.scrollTimeout); window.scrollTimeout=setTimeout(()=>{ isUserScrolling=false; },200); });
+        // Модалки
+        const settingsModal=document.getElementById('settingsModal'); document.getElementById('settingsBtn').onclick=()=>settingsModal.style.display='flex'; document.getElementById('closeModalBtn').onclick=()=>settingsModal.style.display='none';
+        document.getElementById('changeNickBtn').onclick=()=>document.getElementById('changeNickModal').style.display='flex'; document.getElementById('changePinBtn').onclick=()=>document.getElementById('changePinModal').style.display='flex';
+        document.getElementById('applyNickBtn').onclick=async()=>{ const nn=document.getElementById('newNickInput').value.trim(); if(nn) await changeNick(nn); document.getElementById('changeNickModal').style.display='none'; document.getElementById('newNickInput').value=''; };
+        document.getElementById('cancelNickBtn').onclick=()=>document.getElementById('changeNickModal').style.display='none';
+        document.getElementById('applyPinBtn').onclick=async()=>{ const old=document.getElementById('oldPinInput').value, newP=document.getElementById('newPinInput').value; if(old&&newP&&newP.length===4&&/^\d+$/.test(newP)){ await changePin(old,newP); document.getElementById('changePinModal').style.display='none'; document.getElementById('oldPinInput').value=''; document.getElementById('newPinInput').value=''; } else alert('PIN должен быть 4 цифры'); };
+        document.getElementById('cancelPinBtn').onclick=()=>document.getElementById('changePinModal').style.display='none';
+        document.getElementById('mailsBtn').onclick=async()=>{ await loadMails(); document.getElementById('mailsModal').style.display='flex'; };
+        document.getElementById('closeMailsBtn').onclick=()=>document.getElementById('mailsModal').style.display='none';
+        document.getElementById('newMailBtn').onclick=()=>document.getElementById('newMailModal').style.display='flex';
+        document.getElementById('cancelMailBtn').onclick=()=>document.getElementById('newMailModal').style.display='none';
+        document.getElementById('sendMailBtn').onclick=async()=>{ const to=document.getElementById('mailTo').value.trim(), text=document.getElementById('mailText').value.trim(); if(!to||!text){ alert('Заполните поля'); return; } await sendNewMail(to,text); document.getElementById('mailTo').value=''; document.getElementById('mailText').value=''; document.getElementById('newMailModal').style.display='none'; await loadMails(); };
+        document.getElementById('closeViewMailBtn').onclick=()=>document.getElementById('viewMailModal').style.display='none';
+        document.getElementById('replyMailBtn').onclick=()=>{ document.getElementById('viewMailModal').style.display='none'; if(currentMailForReply){ const {nick,tag}=splitFullNick(currentMailForReply.from_full_nick); document.getElementById('originalMailPreview').innerHTML=`<strong>${escapeHtml(nick)}${escapeHtml(tag)}</strong><br>${escapeHtml(currentMailForReply.text)}`; document.getElementById('replyMailText').value=''; document.getElementById('replyMailModal').style.display='flex'; } };
+        document.getElementById('cancelReplyBtn').onclick=()=>document.getElementById('replyMailModal').style.display='none';
+        document.getElementById('sendReplyBtn').onclick=async()=>{ const reply=document.getElementById('replyMailText').value.trim(); if(!reply){ alert('Введите текст ответа'); return; } await sendReply(reply); document.getElementById('replyMailModal').style.display='none'; await loadMails(); };
     };
 </script>
 </body>
