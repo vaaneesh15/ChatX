@@ -11,17 +11,10 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(__dirname));
 
-// Хранилище сообщений в памяти
 let messages = [];
 
-// Авторизация — только ник
 app.post('/auth', (req, res) => {
-  const { nick } = req.body;
-  if (!nick || nick.trim() === '') {
-    return res.status(400).json({ success: false, error: 'Ник не может быть пустым' });
-  }
-  const token = Math.random().toString(36).substring(2, 15);
-  res.json({ success: true, nick: nick.trim(), token });
+  res.json({ success: true, nick: "Пользователь", token: "dummy" });
 });
 
 app.post('/verify', (req, res) => {
@@ -33,7 +26,6 @@ app.get('/messages', (req, res) => {
 });
 
 io.on('connection', (socket) => {
-  console.log('Клиент подключился');
   socket.on('new message', (data) => {
     const { nick, text } = data;
     if (!nick || !text || text.trim() === '') return;
@@ -46,7 +38,6 @@ io.on('connection', (socket) => {
     messages.push(newMsg);
     io.emit('message received', newMsg);
   });
-  socket.on('disconnect', () => console.log('Клиент отключился'));
 });
 
 const PORT = process.env.PORT || 3000;
