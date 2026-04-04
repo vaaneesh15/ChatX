@@ -20,6 +20,7 @@ const pool = new Pool({
 });
 
 async function initDB() {
+  // Таблица users
   await pool.query(`
     CREATE TABLE IF NOT EXISTS users (
       id SERIAL PRIMARY KEY,
@@ -31,15 +32,20 @@ async function initDB() {
       created_at TIMESTAMP DEFAULT NOW()
     );
   `);
+  // Таблица messages с колонкой edited
   await pool.query(`
     CREATE TABLE IF NOT EXISTS messages (
       id SERIAL PRIMARY KEY,
       full_nick VARCHAR(55) NOT NULL,
       text TEXT NOT NULL,
-      edited BOOLEAN DEFAULT FALSE,
       created_at TIMESTAMP DEFAULT NOW()
     );
   `);
+  // Добавляем колонку edited, если её нет
+  await pool.query(`
+    ALTER TABLE messages ADD COLUMN IF NOT EXISTS edited BOOLEAN DEFAULT FALSE;
+  `);
+  // Таблица likes
   await pool.query(`
     CREATE TABLE IF NOT EXISTS likes (
       id SERIAL PRIMARY KEY,
@@ -49,6 +55,7 @@ async function initDB() {
       UNIQUE(message_id, full_nick)
     );
   `);
+  // Таблица mails
   await pool.query(`
     CREATE TABLE IF NOT EXISTS mails (
       id SERIAL PRIMARY KEY,
@@ -175,7 +182,7 @@ app.post('/edit-message', async (req, res) => {
   }
 });
 
-// СООБЩЕНИЯ
+// СООБЩЕНИЯ (без m.edited, используем просто edited)
 app.get('/messages', async (req, res) => {
   const { full_nick } = req.query;
   const result = await pool.query(`
