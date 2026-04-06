@@ -126,7 +126,6 @@ async function isAdmin(full_nick) {
   return res.rows.length > 0 && res.rows[0].is_admin;
 }
 
-// ========== АВТОРИЗАЦИЯ ==========
 app.post('/auth', async (req, res) => {
   const { nick, pin } = req.body;
   if (!nick || nick.trim() === '' || !pin || pin.length !== 4 || !/^\d+$/.test(pin)) {
@@ -211,7 +210,6 @@ app.post('/change-pin', async (req, res) => {
   res.json({ success: true });
 });
 
-// ========== ОБЩИЙ ЧАТ ==========
 app.get('/messages', async (req, res) => {
   const { full_nick } = req.query;
   const result = await pool.query(`
@@ -311,7 +309,6 @@ app.post('/edit-message', async (req, res) => {
   }
 });
 
-// ========== ПРИВАТНЫЕ КОМНАТЫ ==========
 app.get('/rooms', async (req, res) => {
   const { full_nick } = req.query;
   if (!full_nick) return res.status(400).json([]);
@@ -446,7 +443,6 @@ app.post('/edit-room-message', async (req, res) => {
   }
 });
 
-// ========== АДМИНИСТРИРОВАНИЕ ==========
 app.get('/users', async (req, res) => {
   const { admin_nick } = req.query;
   if (!admin_nick) return res.status(400).json([]);
@@ -469,7 +465,6 @@ app.post('/toggle-admin', async (req, res) => {
   res.json({ success: true, is_admin: newStatus });
 });
 
-// ========== ОНЛАЙН ==========
 const onlineUsers = new Set();
 io.on('connection', (socket) => {
   let currentFullNick = null;
@@ -504,6 +499,13 @@ io.on('connection', (socket) => {
       is_admin,
       reactions: []
     };
+    if (reply_to_id) {
+      const replyMsg = await pool.query('SELECT full_nick, text FROM messages WHERE id = $1', [reply_to_id]);
+      if (replyMsg.rows.length) {
+        newMsg.reply_nick = replyMsg.rows[0].full_nick;
+        newMsg.reply_text = replyMsg.rows[0].text;
+      }
+    }
     io.emit('message received', newMsg);
   });
   
@@ -534,6 +536,13 @@ io.on('connection', (socket) => {
       is_admin,
       reactions: []
     };
+    if (reply_to_id) {
+      const replyMsg = await pool.query('SELECT full_nick, text FROM room_messages WHERE id = $1', [reply_to_id]);
+      if (replyMsg.rows.length) {
+        newMsg.reply_nick = replyMsg.rows[0].full_nick;
+        newMsg.reply_text = replyMsg.rows[0].text;
+      }
+    }
     io.to(`room_${roomId}`).emit('room message received', { roomId, message: newMsg });
   });
 });
