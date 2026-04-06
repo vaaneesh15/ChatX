@@ -131,6 +131,7 @@
             display: flex;
             align-items: baseline;
             gap: 0;
+            cursor: pointer;
         }
         .admin-star {
             margin-left: 6px;
@@ -155,6 +156,7 @@
             border-radius: 1rem;
             margin-bottom: 4px;
             display: inline-block;
+            cursor: pointer;
         }
         .message-text { 
             font-size:1rem; line-height:1.4; color:var(--text-primary); 
@@ -170,6 +172,7 @@
             gap: 12px;
             margin-top: 6px;
             flex-wrap: wrap;
+            justify-content: space-between;
         }
         .reaction-btn {
             background: none;
@@ -192,7 +195,6 @@
             display: flex;
             flex-wrap: wrap;
             gap: 6px;
-            margin-top: 4px;
         }
         .reaction-badge {
             background: var(--input-bg);
@@ -236,8 +238,16 @@
             justify-content: space-between;
             align-items: center;
         }
+        .room-info {
+            display: flex;
+            flex-direction: column;
+        }
         .room-name {
             font-weight: 500;
+        }
+        .room-members-count {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
         }
         .join-room-btn {
             background: var(--accent-color);
@@ -295,12 +305,23 @@
             font-weight: 600;
             font-size: 1.1rem;
         }
-        .room-members-count {
+        .room-members-icon {
             background: none;
             border: none;
-            color: var(--text-secondary);
             cursor: pointer;
-            font-size: 0.9rem;
+            width: 2rem;
+            height: 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-secondary);
+        }
+        .room-members-icon svg {
+            width: 1.2rem;
+            height: 1.2rem;
+            stroke: currentColor;
+            stroke-width: 1.5;
+            fill: none;
         }
 
         .modal {
@@ -355,15 +376,6 @@
             padding: 0.5rem 0;
             border-bottom: 0.5px solid var(--border-light);
         }
-        .member-status {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            display: inline-block;
-            margin-right: 8px;
-        }
-        .member-status.online { background-color: #34c759; }
-        .member-status.offline { background-color: #6c6c70; }
         .remove-member-btn {
             background: none;
             border: none;
@@ -421,6 +433,29 @@
         .send-btn {
             background:var(--accent-color); border:none; width:2.5rem; height:2.5rem; border-radius:2rem;
             color:white; font-size:1.3rem; cursor:pointer; display:flex; align-items:center; justify-content:center;
+        }
+        .reply-indicator {
+            background: #2c2c2e;
+            border-radius: 1rem;
+            padding: 0.5rem;
+            margin: 0.5rem 1rem 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.8rem;
+        }
+        .reply-indicator .reply-content {
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .cancel-reply {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 1.2rem;
         }
     </style>
 </head>
@@ -523,7 +558,6 @@
     let rooms = [];
     let currentRoom = null;
     let roomMessages = {};
-    let onlineUsersSet = new Set();
 
     function escapeHtml(str) { return str.replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'})[m]); }
     function splitFullNick(full) { const h=full.lastIndexOf('#'); if(h===-1) return {nick:full,tag:''}; return {nick:full.slice(0,h),tag:full.slice(h)}; }
@@ -565,7 +599,7 @@
             if (msg.is_admin) adminStar = '<span class="admin-star">★</span>';
             let replyHtml = '';
             if (msg.reply_to_id && msg.reply_nick && msg.reply_text) {
-                replyHtml = `<div class="reply-context">↳ Ответ для ${escapeHtml(msg.reply_nick)}: ${escapeHtml(msg.reply_text.substring(0, 50))}${msg.reply_text.length>50?'…':''}</div>`;
+                replyHtml = `<div class="reply-context" data-message="${msg.reply_to_id}">↳ Ответ для ${escapeHtml(msg.reply_nick)}: ${escapeHtml(msg.reply_text.substring(0, 50))}${msg.reply_text.length>50?'…':''}</div>`;
             }
             let reactionsHtml = '';
             if (msg.reactions && msg.reactions.length) {
@@ -584,8 +618,8 @@
                 </div>
                 ${replyHtml}
                 <div class="message-text">${linkify(escapeHtml(msg.text))}</div>
-                ${reactionsHtml}
                 <div class="message-footer">
+                    <div class="reactions-container">${reactionsHtml}</div>
                     <button class="reaction-btn" data-message="${msg.id}" data-room="false"><svg viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" fill="#ff375f"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></button>
                     ${msg.edited ? '<div class="edited-badge">изменено</div>' : ''}
                 </div>
@@ -614,6 +648,20 @@
             const messageId = parseInt(btn.dataset.message);
             addReaction(messageId, reaction, false, null);
         }));
+        document.querySelectorAll('.reply-context').forEach(el => {
+            el.addEventListener('click', () => {
+                const targetId = parseInt(el.dataset.message);
+                const targetMsg = publicMessages.find(m => m.id === targetId);
+                if (targetMsg) scrollToMessage(targetId);
+            });
+        });
+        document.querySelectorAll('.message-nick').forEach(el => {
+            el.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const fullNick = el.closest('.message-item').dataset.fullNick;
+                if (fullNick) navigator.clipboard.writeText(fullNick);
+            });
+        });
         if (wasNearBottom && !window.isUserScrolling) container.scrollTop = container.scrollHeight;
     }
 
@@ -673,10 +721,11 @@
             const roomDiv = document.createElement('div');
             roomDiv.className = 'room-item';
             roomDiv.innerHTML = `
-                <div>
+                <div class="room-info">
                     <div class="room-name">${escapeHtml(room.name)}</div>
+                    <div class="room-members-count">Участников: ${room.members_count}</div>
                 </div>
-                <button class="join-room-btn" data-id="${room.id}" data-name="${escapeHtml(room.name)}">Войти</button>
+                <button class="join-room-btn" data-id="${room.id}" data-name="${escapeHtml(room.name)}">Открыть</button>
             `;
             container.appendChild(roomDiv);
         });
@@ -703,7 +752,14 @@
             <div class="room-header">
                 <button class="back-btn" id="backToRoomsBtn">←</button>
                 <div class="room-title">${escapeHtml(currentRoom.name)}</div>
-                <button class="room-members-count" id="showMembersBtn">👥</button>
+                <button class="room-members-icon" id="showMembersBtn">
+                    <svg viewBox="0 0 24 24" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="9" cy="7" r="4"></circle>
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                    </svg>
+                </button>
             </div>
             <div class="chat-messages" id="roomMessagesContainer"></div>
             <div class="input-wrapper">
@@ -722,8 +778,8 @@
         document.getElementById('sendRoomBtn').onclick = () => sendRoomMessage();
         document.getElementById('showMembersBtn').onclick = () => showRoomMembers(currentRoom.id);
         const roomInput = document.getElementById('roomMessageInput');
-        roomInput.addEventListener('keypress', (e) => { if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); sendRoomMessage(); } });
-        roomInput.addEventListener('input', function() { this.style.height='auto'; this.style.height=Math.min(this.scrollHeight,150)+'px'; });
+        roomInput.addEventListener('keypress', (e) => { if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); const start=roomInput.selectionStart, end=roomInput.selectionEnd; roomInput.value=roomInput.value.substring(0,start)+'\n'+roomInput.value.substring(end); roomInput.selectionStart=roomInput.selectionEnd=start+1; autoResizeTextarea(roomInput); } });
+        roomInput.addEventListener('input', function() { autoResizeTextarea(this); });
         renderRoomMessages(currentRoom.id);
     }
 
@@ -743,7 +799,7 @@
             if (msg.is_admin) adminStar = '<span class="admin-star">★</span>';
             let replyHtml = '';
             if (msg.reply_to_id && msg.reply_nick && msg.reply_text) {
-                replyHtml = `<div class="reply-context">↳ Ответ для ${escapeHtml(msg.reply_nick)}: ${escapeHtml(msg.reply_text.substring(0, 50))}${msg.reply_text.length>50?'…':''}</div>`;
+                replyHtml = `<div class="reply-context" data-message="${msg.reply_to_id}">↳ Ответ для ${escapeHtml(msg.reply_nick)}: ${escapeHtml(msg.reply_text.substring(0, 50))}${msg.reply_text.length>50?'…':''}</div>`;
             }
             let reactionsHtml = '';
             if (msg.reactions && msg.reactions.length) {
@@ -755,12 +811,14 @@
             }
             msgDiv.innerHTML = `
                 <div class="message-header">
-                    <div class="message-nick"><span class="nick-main">${escapeHtml(nick)}</span><span class="nick-tag">${escapeHtml(tag)}</span>${adminStar}</div>
+                    <div class="message-nick">
+                        <span class="nick-main">${escapeHtml(nick)}</span><span class="nick-tag">${escapeHtml(tag)}</span>${adminStar}
+                    </div>
                 </div>
                 ${replyHtml}
                 <div class="message-text">${linkify(escapeHtml(msg.text))}</div>
-                ${reactionsHtml}
                 <div class="message-footer">
+                    <div class="reactions-container">${reactionsHtml}</div>
                     <button class="reaction-btn" data-message="${msg.id}" data-room="true"><svg viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" fill="#ff375f"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></button>
                     ${msg.edited ? '<div class="edited-badge">изменено</div>' : ''}
                 </div>
@@ -790,6 +848,20 @@
             const messageId = parseInt(btn.dataset.message);
             addReaction(messageId, reaction, true, roomId);
         }));
+        document.querySelectorAll('.reply-context').forEach(el => {
+            el.addEventListener('click', () => {
+                const targetId = parseInt(el.dataset.message);
+                const targetMsg = roomMessages[roomId]?.find(m => m.id === targetId);
+                if (targetMsg) scrollToMessageInRoom(targetId);
+            });
+        });
+        document.querySelectorAll('.message-nick').forEach(el => {
+            el.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const fullNick = el.closest('.message-item').dataset.fullNick;
+                if (fullNick) navigator.clipboard.writeText(fullNick);
+            });
+        });
         if (wasNearBottom && !window.isUserScrolling) container.scrollTop = container.scrollHeight;
     }
 
@@ -808,11 +880,10 @@
         const container = document.getElementById('membersList');
         container.innerHTML = '';
         members.forEach(member => {
-            const isOnline = onlineUsersSet.has(member.full_nick);
             const div = document.createElement('div');
             div.className = 'member-item';
             div.innerHTML = `
-                <div><span class="member-status ${isOnline ? 'online' : 'offline'}"></span>${escapeHtml(member.full_nick)}</div>
+                <div>${escapeHtml(member.full_nick)}</div>
                 <button class="remove-member-btn" data-nick="${escapeHtml(member.full_nick)}">−</button>
             `;
             container.appendChild(div);
@@ -840,38 +911,33 @@
         if (!text && !replyingTo) return;
         if (!text && replyingTo) {
             replyingTo = null;
+            hideReplyIndicator();
             return;
         }
         const payload = { roomId: currentRoom.id, full_nick: currentUser.full_nick, text };
         if (replyingTo) {
             payload.reply_to_id = replyingTo.messageId;
             replyingTo = null;
+            hideReplyIndicator();
         }
         socket.emit('new room message', payload);
         input.value = '';
-        input.style.height = 'auto';
+        autoResizeTextarea(input);
     }
 
     function showContextMenu(messageId, full_nick, text, isOwn, isRoom, roomId) {
         const { nick, tag } = splitFullNick(full_nick);
-        const isAdminUser = currentUser.is_admin;
         document.getElementById('contextMessageNick').innerHTML = `<span class="nick-main">${escapeHtml(nick)}</span><span class="nick-tag">${escapeHtml(tag)}</span>`;
         document.getElementById('contextMessagePreview').innerHTML = linkify(escapeHtml(text.substring(0, 150))) + (text.length>150?'…':'');
         const container = document.getElementById('contextMenuButtons');
         container.innerHTML = `
-            <button id="ctx-reply"><span>↩️</span> Ответить</button>
             <button id="ctx-react"><span>😊</span> Реакция</button>
+            <button id="ctx-reply"><span>↩️</span> Ответить</button>
+            ${isOwn ? `<button id="ctx-edit"><svg viewBox="0 0 24 24"><path d="M17 3l4 4-7 7H10v-4l7-7z"/><path d="M4 20h16"/></svg> Редактировать</button>` : ''}
             <button id="ctx-copy"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg> Скопировать</button>
-            ${(isOwn || isAdminUser) ? `<button id="ctx-edit"><svg viewBox="0 0 24 24"><path d="M17 3l4 4-7 7H10v-4l7-7z"/><path d="M4 20h16"/></svg> Редактировать</button>
-            <button id="ctx-delete"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg> Удалить</button>` : ''}
+            ${isOwn ? `<button id="ctx-delete"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg> Удалить</button>` : ''}
             <button id="ctx-close"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg> Закрыть</button>
         `;
-        document.getElementById('ctx-reply').onclick = () => {
-            replyingTo = { messageId, full_nick, text };
-            const input = document.getElementById(isRoom ? 'roomMessageInput' : 'publicMessageInput');
-            input.focus();
-            document.getElementById('contextMenuModal').style.display = 'none';
-        };
         document.getElementById('ctx-react').onclick = () => {
             currentReactionMessage = messageId;
             isReactionForRoom = isRoom;
@@ -879,11 +945,43 @@
             showReactionPicker();
             document.getElementById('contextMenuModal').style.display = 'none';
         };
+        document.getElementById('ctx-reply').onclick = () => {
+            replyingTo = { messageId, full_nick, text };
+            showReplyIndicator(replyingTo);
+            document.getElementById('contextMenuModal').style.display = 'none';
+            const input = document.getElementById(isRoom ? 'roomMessageInput' : 'publicMessageInput');
+            input.focus();
+        };
         document.getElementById('ctx-copy').onclick = () => { navigator.clipboard.writeText(text); document.getElementById('contextMenuModal').style.display = 'none'; };
         document.getElementById('ctx-edit').onclick = () => { editingMessageId = messageId; document.getElementById('contextMenuModal').style.display = 'none'; if (!isRoom) renderPublicMessages(); else if (currentRoom && currentRoom.id === roomId) renderRoomMessages(roomId); };
         document.getElementById('ctx-delete').onclick = () => { pendingDeleteMessageId = messageId; contextMessageData = { isRoom, roomId }; document.getElementById('confirmMessage').innerText = 'Удалить сообщение?'; document.getElementById('confirmModal').style.display = 'flex'; document.getElementById('contextMenuModal').style.display = 'none'; };
         document.getElementById('ctx-close').onclick = () => document.getElementById('contextMenuModal').style.display = 'none';
         document.getElementById('contextMenuModal').style.display = 'flex';
+    }
+
+    function showReplyIndicator(reply) {
+        const indicator = document.getElementById('replyIndicator');
+        if (!indicator) {
+            const div = document.createElement('div');
+            div.id = 'replyIndicator';
+            div.className = 'reply-indicator';
+            div.innerHTML = `
+                <div class="reply-content">Ответ для ${escapeHtml(reply.full_nick)}: ${escapeHtml(reply.text.substring(0, 50))}${reply.text.length>50?'…':''}</div>
+                <button class="cancel-reply">✕</button>
+            `;
+            const wrapper = document.querySelector('.input-wrapper');
+            wrapper.parentNode.insertBefore(div, wrapper);
+            div.querySelector('.cancel-reply').onclick = () => { replyingTo = null; div.remove(); };
+        } else {
+            indicator.querySelector('.reply-content').innerHTML = `Ответ для ${escapeHtml(reply.full_nick)}: ${escapeHtml(reply.text.substring(0, 50))}${reply.text.length>50?'…':''}`;
+            indicator.style.display = 'flex';
+            indicator.querySelector('.cancel-reply').onclick = () => { replyingTo = null; indicator.style.display = 'none'; };
+        }
+    }
+
+    function hideReplyIndicator() {
+        const indicator = document.getElementById('replyIndicator');
+        if (indicator) indicator.style.display = 'none';
     }
 
     async function authWithPin(nick, pin) {
@@ -901,7 +999,6 @@
                 if (socket) socket.disconnect();
                 socket = io();
                 socket.emit('user online', currentUser.full_nick);
-                socket.on('online count', (count) => { onlineUsersSet.clear(); });
                 socket.on('message received', (newMsg) => { publicMessages.push(newMsg); renderPublicMessages(); });
                 socket.on('message deleted', (msgId) => { publicMessages = publicMessages.filter(m=>m.id!==msgId); renderPublicMessages(); });
                 socket.on('message edited', ({messageId,newText}) => { const msg = publicMessages.find(m=>m.id===messageId); if(msg){ msg.text=newText; msg.edited=true; renderPublicMessages(); } });
@@ -934,7 +1031,6 @@
                 document.getElementById('appContainer').style.display = 'flex';
                 socket = io();
                 socket.emit('user online', currentUser.full_nick);
-                socket.on('online count', (count) => { onlineUsersSet.clear(); });
                 socket.on('message received', (newMsg) => { publicMessages.push(newMsg); renderPublicMessages(); });
                 socket.on('message deleted', (msgId) => { publicMessages = publicMessages.filter(m=>m.id!==msgId); renderPublicMessages(); });
                 socket.on('message edited', ({messageId,newText}) => { const msg = publicMessages.find(m=>m.id===messageId); if(msg){ msg.text=newText; msg.edited=true; renderPublicMessages(); } });
@@ -960,16 +1056,18 @@
         if (!text && !replyingTo) return;
         if (!text && replyingTo) {
             replyingTo = null;
+            hideReplyIndicator();
             return;
         }
         const payload = { full_nick: currentUser.full_nick, text };
         if (replyingTo) {
             payload.reply_to_id = replyingTo.messageId;
             replyingTo = null;
+            hideReplyIndicator();
         }
         socket.emit('new message', payload);
         input.value = '';
-        input.style.height = 'auto';
+        autoResizeTextarea(input);
         input.focus();
     }
 
@@ -1013,6 +1111,25 @@
         else alert(data.error || 'Ошибка');
     }
 
+    function scrollToMessage(messageId) {
+        const element = document.querySelector(`.message-item[data-id="${messageId}"]`);
+        if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            element.style.transition = 'background-color 0.3s';
+            element.style.backgroundColor = 'var(--accent-color)';
+            setTimeout(() => { element.style.backgroundColor = ''; }, 1000);
+        }
+    }
+    function scrollToMessageInRoom(messageId) {
+        const element = document.querySelector(`#roomMessagesContainer .message-item[data-id="${messageId}"]`);
+        if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            element.style.transition = 'background-color 0.3s';
+            element.style.backgroundColor = 'var(--accent-color)';
+            setTimeout(() => { element.style.backgroundColor = ''; }, 1000);
+        }
+    }
+
     window.onload = async () => {
         applyAccent(appSettings.accent);
         document.getElementById('accentSelect').value = appSettings.accent;
@@ -1034,7 +1151,7 @@
         document.getElementById('sendPublicBtn').onclick = sendPublicMessage;
         const publicInput = document.getElementById('publicMessageInput');
         publicInput.addEventListener('input', () => autoResizeTextarea(publicInput));
-        publicInput.addEventListener('keypress', (e) => { if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); sendPublicMessage(); } });
+        publicInput.addEventListener('keypress', (e) => { if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); const start=publicInput.selectionStart, end=publicInput.selectionEnd; publicInput.value=publicInput.value.substring(0,start)+'\n'+publicInput.value.substring(end); publicInput.selectionStart=publicInput.selectionEnd=start+1; autoResizeTextarea(publicInput); } });
         document.querySelectorAll('.top-tab').forEach(btn => btn.addEventListener('click', () => switchTab(btn.dataset.tab)));
         document.getElementById('changeNickBtn').onclick = () => document.getElementById('changeNickModal').style.display = 'flex';
         document.getElementById('changePinBtn').onclick = () => document.getElementById('changePinModal').style.display = 'flex';
@@ -1088,7 +1205,7 @@
                 await fetch(url, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ messageId: pendingDeleteMessageId, full_nick: currentUser.full_nick, isAdmin: currentUser.is_admin, roomId })
+                    body: JSON.stringify({ messageId: pendingDeleteMessageId, full_nick: currentUser.full_nick, roomId })
                 });
                 pendingDeleteMessageId = null;
             }
