@@ -51,6 +51,18 @@ async function initDB() {
       UNIQUE(message_id, full_nick)
     );
   `);
+  // Таблица реакций (эмодзи)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS message_reactions (
+      id SERIAL PRIMARY KEY,
+      message_id INTEGER NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+      full_nick VARCHAR(55) NOT NULL,
+      reaction VARCHAR(10) NOT NULL,
+      created_at TIMESTAMP DEFAULT NOW(),
+      UNIQUE(message_id, full_nick, reaction)
+    );
+  `);
+  // Для комнат
   await pool.query(`
     CREATE TABLE IF NOT EXISTS rooms (
       id SERIAL PRIMARY KEY,
@@ -79,12 +91,13 @@ async function initDB() {
     );
   `);
   await pool.query(`
-    CREATE TABLE IF NOT EXISTS room_likes (
+    CREATE TABLE IF NOT EXISTS room_reactions (
       id SERIAL PRIMARY KEY,
       message_id INTEGER NOT NULL REFERENCES room_messages(id) ON DELETE CASCADE,
       full_nick VARCHAR(55) NOT NULL,
+      reaction VARCHAR(10) NOT NULL,
       created_at TIMESTAMP DEFAULT NOW(),
-      UNIQUE(message_id, full_nick)
+      UNIQUE(message_id, full_nick, reaction)
     );
   `);
 
@@ -184,11 +197,11 @@ app.post('/change-nick', async (req, res) => {
   }
   await pool.query('UPDATE users SET nick = $1, full_nick = $2 WHERE token = $3', [newNick, newFullNick, token]);
   await pool.query('UPDATE messages SET full_nick = $1 WHERE full_nick = $2', [newFullNick, oldFullNick]);
-  await pool.query('UPDATE likes SET full_nick = $1 WHERE full_nick = $2', [newFullNick, oldFullNick]);
+  await pool.query('UPDATE message_reactions SET full_nick = $1 WHERE full_nick = $2', [newFullNick, oldFullNick]);
   await pool.query('UPDATE rooms SET created_by = $1 WHERE created_by = $2', [newFullNick, oldFullNick]);
   await pool.query('UPDATE room_members SET full_nick = $1 WHERE full_nick = $2', [newFullNick, oldFullNick]);
   await pool.query('UPDATE room_messages SET full_nick = $1 WHERE full_nick = $2', [newFullNick, oldFullNick]);
-  await pool.query('UPDATE room_likes SET full_nick = $1 WHERE full_nick = $2', [newFullNick, oldFullNick]);
+  await pool.query('UPDATE room_reactions SET full_nick = $1 WHERE full_nick = $2', [newFullNick, oldFullNick]);
   io.emit('nick changed', { oldFullNick, newFullNick });
   res.json({ success: true, newFullNick });
 });
@@ -215,12 +228,18 @@ app.get('/messages', async (req, res) => {
   const result = await pool.query(`
     SELECT m.id, m.full_nick, m.text, m.edited, m.created_at,
            COALESCE(l.likes_count, 0) as likes_count,
-           EXISTS(SELECT 1 FROM likes WHERE message_id = m.id AND full_nick = $1) as is_liked,
-           u.is_admin
+           EXISTS(SELECT 1 FROM message_reactions WHERE message_id = m.id AND full_nick = $1) as is_liked,
+           u.is_admin,
+           (SELECT json_agg(json_build_object('reaction', reaction, 'count', cnt)) FROM (
+              SELECT reaction, COUNT(*) as cnt
+              FROM message_reactions
+              WHERE message_id = m.id
+              GROUP BY reaction
+            ) r) as reactions
     FROM messages m
     LEFT JOIN (
       SELECT message_id, COUNT(*) as likes_count
-      FROM likes
+      FROM message_reactions
       GROUP BY message_id
     ) l ON m.id = l.message_id
     LEFT JOIN users u ON m.full_nick = u.full_nick
@@ -229,6 +248,52 @@ app.get('/messages', async (req, res) => {
   `, [full_nick || '', limit, offset]);
   const total = await pool.query('SELECT COUNT(*) FROM messages');
   res.json({ messages: result.rows, total: parseInt(total.rows[0].count), page: parseInt(page) });
+});
+
+app.post('/add-reaction', async (req, res) => {
+  const { messageId, full_nick, reaction, isRoom, roomId } = req.body;
+  if (!messageId || !full_nick || !reaction) return res.status(400).json({ success: false });
+  const table = isRoom ? 'room_reactions' : 'message_reactions';
+  const msgTable = isRoom ? 'room_messages' : 'messages';
+  try {
+    await pool.query(
+      `INSERT INTO ${table} (message_id, full_nick, reaction) VALUES ($1, $2, $3)`,
+      [messageId, full_nick, reaction]
+    );
+    // Получаем обновлённый список реакций
+    const reactionsRes = await pool.query(
+      `SELECT reaction, COUNT(*) as count FROM ${table} WHERE message_id = $1 GROUP BY reaction`,
+      [messageId]
+    );
+    const reactions = reactionsRes.rows;
+    if (isRoom) {
+      io.to(`room_${roomId}`).emit('reaction updated', { roomId, messageId, reactions });
+    } else {
+      io.emit('reaction updated', { messageId, reactions });
+    }
+    res.json({ success: true, reactions });
+  } catch (err) {
+    if (err.code === '23505') {
+      // Удаляем реакцию (если уже есть такая)
+      await pool.query(
+        `DELETE FROM ${table} WHERE message_id = $1 AND full_nick = $2 AND reaction = $3`,
+        [messageId, full_nick, reaction]
+      );
+      const reactionsRes = await pool.query(
+        `SELECT reaction, COUNT(*) as count FROM ${table} WHERE message_id = $1 GROUP BY reaction`,
+        [messageId]
+      );
+      const reactions = reactionsRes.rows;
+      if (isRoom) {
+        io.to(`room_${roomId}`).emit('reaction updated', { roomId, messageId, reactions });
+      } else {
+        io.emit('reaction updated', { messageId, reactions });
+      }
+      res.json({ success: true, reactions });
+    } else {
+      res.status(500).json({ success: false });
+    }
+  }
 });
 
 app.post('/delete-message', async (req, res) => {
@@ -268,44 +333,6 @@ app.post('/edit-message', async (req, res) => {
   }
 });
 
-app.post('/like', async (req, res) => {
-  const { messageId, full_nick, isRoom, roomId } = req.body;
-  if (!messageId || !full_nick) return res.status(400).json({ success: false });
-  if (isRoom) {
-    try {
-      await pool.query('INSERT INTO room_likes (message_id, full_nick) VALUES ($1, $2)', [messageId, full_nick]);
-      const countRes = await pool.query('SELECT COUNT(*) as count FROM room_likes WHERE message_id = $1', [messageId]);
-      io.emit('room_like_updated', { roomId, messageId, full_nick, likes_count: parseInt(countRes.rows[0].count), is_liked: true });
-      res.json({ success: true, likes_count: parseInt(countRes.rows[0].count) });
-    } catch (err) {
-      if (err.code === '23505') {
-        await pool.query('DELETE FROM room_likes WHERE message_id = $1 AND full_nick = $2', [messageId, full_nick]);
-        const countRes = await pool.query('SELECT COUNT(*) as count FROM room_likes WHERE message_id = $1', [messageId]);
-        io.emit('room_like_updated', { roomId, messageId, full_nick, likes_count: parseInt(countRes.rows[0].count), is_liked: false });
-        res.json({ success: true, likes_count: parseInt(countRes.rows[0].count) });
-      } else {
-        res.status(500).json({ success: false });
-      }
-    }
-  } else {
-    try {
-      await pool.query('INSERT INTO likes (message_id, full_nick) VALUES ($1, $2)', [messageId, full_nick]);
-      const countRes = await pool.query('SELECT COUNT(*) as count FROM likes WHERE message_id = $1', [messageId]);
-      io.emit('like updated', { messageId, full_nick, likes_count: parseInt(countRes.rows[0].count), is_liked: true });
-      res.json({ success: true, likes_count: parseInt(countRes.rows[0].count) });
-    } catch (err) {
-      if (err.code === '23505') {
-        await pool.query('DELETE FROM likes WHERE message_id = $1 AND full_nick = $2', [messageId, full_nick]);
-        const countRes = await pool.query('SELECT COUNT(*) as count FROM likes WHERE message_id = $1', [messageId]);
-        io.emit('like updated', { messageId, full_nick, likes_count: parseInt(countRes.rows[0].count), is_liked: false });
-        res.json({ success: true, likes_count: parseInt(countRes.rows[0].count) });
-      } else {
-        res.status(500).json({ success: false });
-      }
-    }
-  }
-});
-
 // ========== ПРИВАТНЫЕ КОМНАТЫ ==========
 app.get('/rooms', async (req, res) => {
   const { full_nick } = req.query;
@@ -321,7 +348,6 @@ app.get('/rooms', async (req, res) => {
 app.get('/room-members', async (req, res) => {
   const { roomId, full_nick } = req.query;
   if (!roomId || !full_nick) return res.status(400).json([]);
-  // Проверяем, есть ли пользователь в комнате
   const member = await pool.query('SELECT id FROM room_members WHERE room_id = $1 AND full_nick = $2', [roomId, full_nick]);
   if (member.rows.length === 0) return res.status(403).json([]);
   const members = await pool.query(`
@@ -367,6 +393,20 @@ app.post('/add-room-member', async (req, res) => {
   res.json({ success: true });
 });
 
+app.post('/remove-room-member', async (req, res) => {
+  const { roomId, full_nick, admin_nick } = req.body;
+  if (!roomId || !full_nick || !admin_nick) return res.status(400).json({ success: false });
+  const isAdminUser = await isAdmin(admin_nick);
+  const room = await pool.query('SELECT created_by FROM rooms WHERE id = $1', [roomId]);
+  if (room.rows.length === 0) return res.json({ success: false });
+  if (room.rows[0].created_by !== admin_nick && !isAdminUser) {
+    return res.json({ success: false });
+  }
+  await pool.query('DELETE FROM room_members WHERE room_id = $1 AND full_nick = $2', [roomId, full_nick]);
+  io.emit('room_member_removed', { roomId, full_nick });
+  res.json({ success: true });
+});
+
 app.get('/room-messages', async (req, res) => {
   const { roomId, full_nick, page = 1 } = req.query;
   if (!roomId || !full_nick) return res.status(400).json([]);
@@ -376,15 +416,14 @@ app.get('/room-messages', async (req, res) => {
   const offset = (page - 1) * limit;
   const result = await pool.query(`
     SELECT rm.id, rm.full_nick, rm.text, rm.edited, rm.created_at,
-           COALESCE(l.likes_count, 0) as likes_count,
-           EXISTS(SELECT 1 FROM room_likes WHERE message_id = rm.id AND full_nick = $1) as is_liked,
-           u.is_admin
+           u.is_admin,
+           (SELECT json_agg(json_build_object('reaction', reaction, 'count', cnt)) FROM (
+              SELECT reaction, COUNT(*) as cnt
+              FROM room_reactions
+              WHERE message_id = rm.id
+              GROUP BY reaction
+            ) r) as reactions
     FROM room_messages rm
-    LEFT JOIN (
-      SELECT message_id, COUNT(*) as likes_count
-      FROM room_likes
-      GROUP BY message_id
-    ) l ON rm.id = l.message_id
     LEFT JOIN users u ON rm.full_nick = u.full_nick
     WHERE rm.room_id = $2
     ORDER BY rm.created_at ASC
@@ -431,7 +470,7 @@ app.post('/edit-room-message', async (req, res) => {
   }
 });
 
-// ========== АДМИНИСТРИРОВАНИЕ ==========
+// ========== АДМИНИСТРИРОВАНИЕ (без отдельной вкладки) ==========
 app.get('/users', async (req, res) => {
   const { admin_nick } = req.query;
   if (!admin_nick) return res.status(400).json([]);
@@ -486,9 +525,8 @@ io.on('connection', (socket) => {
       text: text.trim(),
       edited: false,
       created_at: result.rows[0].created_at,
-      likes_count: 0,
-      is_liked: false,
-      is_admin
+      is_admin,
+      reactions: []
     };
     io.emit('message received', newMsg);
   });
@@ -517,9 +555,8 @@ io.on('connection', (socket) => {
       text: text.trim(),
       edited: false,
       created_at: result.rows[0].created_at,
-      likes_count: 0,
-      is_liked: false,
-      is_admin
+      is_admin,
+      reactions: []
     };
     io.to(`room_${roomId}`).emit('room message received', { roomId, message: newMsg });
   });
