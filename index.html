@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
-    <title>Simply</title>
+    <title>ChatX</title>
     <style>
         * {
             margin: 0;
@@ -68,16 +68,16 @@
 
         .app-container { height:100%; display: flex; flex-direction: column; background-color: var(--bg-page); position: relative; overflow: hidden; }
 
+        /* Верхняя панель вкладок — прижата к левому краю, фон на статус-бар */
         .top-tab-bar {
             background: var(--input-bg);
-            border-bottom: 1px solid var(--border-light);
-            padding: 0.5rem 1rem;
+            padding: 0.75rem 1rem 0.5rem 1rem;
             display: flex;
             gap: 0.5rem;
             overflow-x: auto;
             white-space: nowrap;
             flex-shrink: 0;
-            justify-content: center;
+            justify-content: flex-start;
         }
         .top-tab {
             background: none;
@@ -181,7 +181,7 @@
             gap: 12px;
             margin-top: 6px;
             flex-wrap: wrap;
-            justify-content: space-between;
+            justify-content: flex-start;
         }
         .reaction-btn {
             background: none;
@@ -193,6 +193,7 @@
             display: inline-flex;
             align-items: center;
             gap: 4px;
+            margin-right: 8px;
         }
         .reaction-btn svg {
             width: 1rem;
@@ -217,6 +218,9 @@
             border: 0.5px solid rgba(255,255,255,0.1);
         }
         .reaction-badge .reaction-count {
+            color: var(--text-secondary);
+        }
+        .reaction-badge.user-liked .reaction-count {
             color: var(--accent-color);
         }
         .edited-badge {
@@ -490,7 +494,7 @@
 
 <div id="loginScreen" class="login-screen">
     <div class="login-card">
-        <h2>Simply</h2>
+        <h2>ChatX</h2>
         <input type="text" id="loginNick" placeholder="Ник" autocomplete="off">
         <input type="text" id="loginPin" placeholder="PIN (4 цифры)" maxlength="4" inputmode="numeric" pattern="\d*" autocomplete="off">
         <button id="loginBtn">Войти</button>
@@ -638,7 +642,8 @@
             if (msg.reactions && msg.reactions.length) {
                 reactionsHtml = '<div class="reactions-container">';
                 msg.reactions.forEach(r => {
-                    reactionsHtml += `<button class="reaction-badge" data-reaction="${r.reaction}" data-message="${msg.id}"><span>${r.reaction}</span> <span class="reaction-count">${r.count}</span></button>`;
+                    const userLikedClass = r.user_liked ? 'user-liked' : '';
+                    reactionsHtml += `<button class="reaction-badge ${userLikedClass}" data-reaction="${r.reaction}" data-message="${msg.id}"><span>${r.reaction}</span> <span class="reaction-count">${r.count}</span></button>`;
                 });
                 reactionsHtml += '</div>';
             }
@@ -652,8 +657,8 @@
                 ${replyHtml}
                 <div class="message-text">${linkify(escapeHtml(msg.text))}</div>
                 <div class="message-footer">
-                    <div class="reactions-container">${reactionsHtml}</div>
                     <button class="reaction-btn" data-message="${msg.id}" data-room="false"><svg viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" fill="#ff375f"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></button>
+                    ${reactionsHtml}
                     ${msg.edited ? '<div class="edited-badge">изменено</div>' : ''}
                 </div>
                 <div class="message-divider"></div>
@@ -838,7 +843,8 @@
             if (msg.reactions && msg.reactions.length) {
                 reactionsHtml = '<div class="reactions-container">';
                 msg.reactions.forEach(r => {
-                    reactionsHtml += `<button class="reaction-badge" data-reaction="${r.reaction}" data-message="${msg.id}"><span>${r.reaction}</span> <span class="reaction-count">${r.count}</span></button>`;
+                    const userLikedClass = r.user_liked ? 'user-liked' : '';
+                    reactionsHtml += `<button class="reaction-badge ${userLikedClass}" data-reaction="${r.reaction}" data-message="${msg.id}"><span>${r.reaction}</span> <span class="reaction-count">${r.count}</span></button>`;
                 });
                 reactionsHtml += '</div>';
             }
@@ -851,8 +857,8 @@
                 ${replyHtml}
                 <div class="message-text">${linkify(escapeHtml(msg.text))}</div>
                 <div class="message-footer">
-                    <div class="reactions-container">${reactionsHtml}</div>
                     <button class="reaction-btn" data-message="${msg.id}" data-room="true"><svg viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" fill="#ff375f"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></button>
+                    ${reactionsHtml}
                     ${msg.edited ? '<div class="edited-badge">изменено</div>' : ''}
                 </div>
                 <div class="message-divider"></div>
@@ -902,7 +908,6 @@
             const res = await fetch(`/room-messages?roomId=${roomId}&full_nick=${encodeURIComponent(currentUser.full_nick)}`);
             const data = await res.json();
             roomMessages[roomId] = data;
-            // Получаем количество участников для отображения в шапке
             const membersRes = await fetch(`/room-members?roomId=${roomId}&full_nick=${encodeURIComponent(currentUser.full_nick)}`);
             const members = await membersRes.json();
             roomMessages[roomId].membersCount = members.length;
@@ -1045,7 +1050,7 @@
                 if (socket) socket.disconnect();
                 socket = io();
                 socket.emit('user online', currentUser.full_nick);
-                socket.on('online count', (count) => { onlineUsersSet.clear(); /* обновление будет отдельно */ });
+                socket.on('online count', (count) => { onlineUsersSet.clear(); });
                 socket.on('message received', (newMsg) => { 
                     publicMessages.push(newMsg); 
                     renderPublicMessages(); 
@@ -1236,6 +1241,7 @@
         }
     }
 
+    let onlineUsersSet = new Set();
     window.onload = async () => {
         applyAccent(appSettings.accent);
         document.getElementById('accentSelect').value = appSettings.accent;
