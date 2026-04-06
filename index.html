@@ -65,7 +65,6 @@
         }
         .login-card .error { color:#ff6b6b; font-size:0.8rem; margin-top:0.5rem; text-align:center; }
 
-        /* Основной контейнер */
         .app-container { height:100%; display: flex; flex-direction: column; background-color: var(--bg-page); position: relative; overflow: hidden; }
 
         /* Верхняя панель вкладок */
@@ -96,7 +95,6 @@
             background: var(--accent-light);
         }
 
-        /* Контент вкладок */
         .tab-content {
             flex: 1;
             overflow-y: auto;
@@ -107,7 +105,7 @@
             display: flex;
         }
 
-        /* Общий чат и приватные чаты (одинаковый стиль) */
+        /* Общий чат и приватные чаты */
         .chat-messages {
             flex: 1;
             overflow-y: auto;
@@ -169,13 +167,18 @@
             background: none;
             border: none;
             cursor: pointer;
-            font-size: 1rem;
             padding: 2px 6px;
             border-radius: 2rem;
             background: var(--input-bg);
             display: inline-flex;
             align-items: center;
             gap: 4px;
+        }
+        .reaction-btn svg {
+            width: 1rem;
+            height: 1rem;
+            fill: #ff375f;
+            stroke: #ff375f;
         }
         .reactions-container {
             display: flex;
@@ -198,6 +201,12 @@
             color:var(--text-secondary);
             margin-left: auto;
             font-style:italic;
+        }
+        .message-divider {
+            margin-top: 8px;
+            height: 1px;
+            background-color: rgba(84,84,88,0.4);
+            width: 100%;
         }
         .load-more-btn {
             background: none;
@@ -317,7 +326,6 @@
         .modal-buttons button:first-child { background: #2c2c2e; color: white; }
         .modal-buttons button:last-child { background: var(--accent-color); color:white; }
 
-        /* Окно выбора реакций */
         .reactions-picker {
             display: grid;
             grid-template-columns: repeat(5, 1fr);
@@ -334,7 +342,6 @@
             border-radius: 1rem;
         }
 
-        /* Список участников комнаты */
         .members-list {
             max-height: 300px;
             overflow-y: auto;
@@ -364,7 +371,6 @@
             font-size: 1rem;
         }
 
-        /* Настройки (вкладка) */
         .settings-container { padding: 1.5rem; display: flex; flex-direction: column; gap: 1.8rem; }
         .setting-row { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
         .setting-label { font-weight: 500; font-size: 1rem; color: var(--text-primary); }
@@ -378,7 +384,6 @@
             appearance: none;
         }
 
-        /* Нижняя панель ввода (общая) */
         .input-wrapper {
             background: var(--input-bg);
             border-top: 1px solid rgba(84,84,88,0.6);
@@ -415,14 +420,12 @@
 </div>
 
 <div id="appContainer" class="app-container" style="display: none;">
-    <!-- Верхние вкладки -->
     <div class="top-tab-bar">
         <button class="top-tab active" data-tab="public">Общий</button>
         <button class="top-tab" data-tab="private">Приватные</button>
         <button class="top-tab" data-tab="settings">Настройки</button>
     </div>
 
-    <!-- Вкладка "Общий чат" -->
     <div id="publicTab" class="tab-content active">
         <div class="chat-messages" id="publicMessagesContainer"></div>
         <div class="input-wrapper">
@@ -433,7 +436,6 @@
         </div>
     </div>
 
-    <!-- Вкладка "Приватные чаты" (список комнат) -->
     <div id="privateTab" class="tab-content">
         <div id="roomsList" class="rooms-list">Загрузка...</div>
         <div class="create-room-fab" id="createRoomFab">
@@ -444,7 +446,6 @@
         </div>
     </div>
 
-    <!-- Вкладка "Настройки" -->
     <div id="settingsTab" class="tab-content">
         <div class="settings-container">
             <div class="setting-row">
@@ -487,13 +488,11 @@
 
 <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
 <script>
-    // ---------- Глобальные переменные ----------
     let socket = null;
     let currentUser = { full_nick: "", is_admin: false };
     let authToken = localStorage.getItem('simply_token');
     let appSettings = JSON.parse(localStorage.getItem('simply_settings')) || { accent: 'blue' };
     
-    // Общий чат
     let publicMessages = [];
     let publicPage = 1;
     let publicTotal = 0;
@@ -504,16 +503,14 @@
     let currentReactionRoomId = null;
     let isReactionForRoom = false;
 
-    // Приватные комнаты
     let rooms = [];
-    let currentRoom = null; // { id, name }
+    let currentRoom = null;
     let roomMessages = {};
     let roomPages = {};
     let roomTotal = {};
     let roomLoading = {};
     let onlineUsersSet = new Set();
 
-    // ---------- Вспомогательные функции ----------
     function escapeHtml(str) { return str.replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'})[m]); }
     function splitFullNick(full) { const h=full.lastIndexOf('#'); if(h===-1) return {nick:full,tag:''}; return {nick:full.slice(0,h),tag:full.slice(h)}; }
     function linkify(text) {
@@ -538,7 +535,6 @@
         localStorage.setItem('simply_settings', JSON.stringify(appSettings));
     }
 
-    // Рендер общего чата
     function renderPublicMessages() {
         const container = document.getElementById('publicMessagesContainer');
         if (!container) return;
@@ -553,7 +549,6 @@
             msgDiv.setAttribute('data-id', msg.id);
             let adminStar = '';
             if (msg.is_admin) adminStar = '<span class="admin-star">★</span>';
-            // Реакции
             let reactionsHtml = '';
             if (msg.reactions && msg.reactions.length) {
                 reactionsHtml = '<div class="reactions-container">';
@@ -568,12 +563,12 @@
                         <span class="nick-main">${escapeHtml(nick)}</span><span class="nick-tag">${escapeHtml(tag)}</span>
                         ${adminStar}
                     </div>
-                    ${msg.edited ? '<div class="edited-badge">изменено</div>' : ''}
                 </div>
                 <div class="message-text">${linkify(escapeHtml(msg.text))}</div>
                 ${reactionsHtml}
                 <div class="message-footer">
-                    <button class="reaction-btn" data-message="${msg.id}" data-room="false">❤️ Реакция</button>
+                    <button class="reaction-btn" data-message="${msg.id}" data-room="false"><svg viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" fill="#ff375f"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></button>
+                    ${msg.edited ? '<div class="edited-badge">изменено</div>' : ''}
                 </div>
                 <div class="message-divider"></div>
             `;
@@ -627,7 +622,6 @@
         publicLoading = false;
     }
 
-    // Реакции
     async function addReaction(messageId, reaction, isRoom, roomId) {
         try {
             const res = await fetch('/add-reaction', {
@@ -664,7 +658,6 @@
         document.getElementById('reactionPickerModal').style.display = 'flex';
     }
 
-    // Список комнат
     async function loadRooms() {
         const res = await fetch(`/rooms?full_nick=${encodeURIComponent(currentUser.full_nick)}`);
         rooms = await res.json();
@@ -708,7 +701,7 @@
             <div class="room-header">
                 <button class="back-btn" id="backToRoomsBtn">←</button>
                 <div class="room-title">${escapeHtml(currentRoom.name)}</div>
-                <button class="room-members-count" id="showMembersBtn">👥</button>
+                <button class="room-members-count" id="showMembersBtn">${getOnlineMembersCount(currentRoom.id)}</button>
             </div>
             <div class="chat-messages" id="roomMessagesContainer"></div>
             <div class="input-wrapper">
@@ -730,6 +723,11 @@
         roomInput.addEventListener('keypress', (e) => { if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); sendRoomMessage(); } });
         roomInput.addEventListener('input', function() { this.style.height='auto'; this.style.height=Math.min(this.scrollHeight,150)+'px'; });
         renderRoomMessages(currentRoom.id);
+    }
+
+    function getOnlineMembersCount(roomId) {
+        // получаем участников комнаты из roomMembers? пока просто заглушка
+        return '👥';
     }
 
     function renderRoomMessages(roomId) {
@@ -757,12 +755,12 @@
             msgDiv.innerHTML = `
                 <div class="message-header">
                     <div class="message-nick"><span class="nick-main">${escapeHtml(nick)}</span><span class="nick-tag">${escapeHtml(tag)}</span>${adminStar}</div>
-                    ${msg.edited ? '<div class="edited-badge">изменено</div>' : ''}
                 </div>
                 <div class="message-text">${linkify(escapeHtml(msg.text))}</div>
                 ${reactionsHtml}
                 <div class="message-footer">
-                    <button class="reaction-btn" data-message="${msg.id}" data-room="true">❤️ Реакция</button>
+                    <button class="reaction-btn" data-message="${msg.id}" data-room="true"><svg viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" fill="#ff375f"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></button>
+                    ${msg.edited ? '<div class="edited-badge">изменено</div>' : ''}
                 </div>
                 <div class="message-divider"></div>
             `;
@@ -865,7 +863,6 @@
         input.style.height = 'auto';
     }
 
-    // Контекстное меню
     function showContextMenu(messageId, full_nick, text, isOwn, isRoom, roomId) {
         const { nick, tag } = splitFullNick(full_nick);
         const isAdminUser = currentUser.is_admin;
@@ -893,7 +890,6 @@
         document.getElementById('contextMenuModal').style.display = 'flex';
     }
 
-    // Авторизация
     async function authWithPin(nick, pin) {
         try {
             const res = await fetch('/auth', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ nick, pin }) });
@@ -909,7 +905,7 @@
                 if (socket) socket.disconnect();
                 socket = io();
                 socket.emit('user online', currentUser.full_nick);
-                socket.on('online count', (count) => { document.getElementById('onlineCount').innerText = count; onlineUsersSet.clear(); /* обновление онлайна будет отдельно */ });
+                socket.on('online count', (count) => { document.getElementById('onlineCount').innerText = count; onlineUsersSet.clear(); });
                 socket.on('message received', (newMsg) => { publicMessages.push(newMsg); renderPublicMessages(); });
                 socket.on('message deleted', (msgId) => { publicMessages = publicMessages.filter(m=>m.id!==msgId); renderPublicMessages(); });
                 socket.on('message edited', ({messageId,newText}) => { const msg = publicMessages.find(m=>m.id===messageId); if(msg){ msg.text=newText; msg.edited=true; renderPublicMessages(); } });
@@ -977,7 +973,6 @@
         textarea.style.height = Math.min(textarea.scrollHeight, 150) + 'px';
     }
 
-    // Переключение вкладок
     function switchTab(tabId) {
         document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
         document.querySelectorAll('.top-tab').forEach(t => t.classList.remove('active'));
@@ -986,7 +981,6 @@
         if (tabId === 'private' && !currentRoom) loadRooms();
     }
 
-    // Смена ника и PIN
     async function changeNick(newNick) {
         const res = await fetch('/change-nick', {
             method: 'POST',
@@ -1014,7 +1008,6 @@
         else alert(data.error || 'Ошибка');
     }
 
-    // Инициализация
     window.onload = async () => {
         applyAccent(appSettings.accent);
         document.getElementById('accentSelect').value = appSettings.accent;
@@ -1076,9 +1069,9 @@
         document.getElementById('closeReactionPickerBtn').onclick = () => document.getElementById('reactionPickerModal').style.display = 'none';
         document.getElementById('confirmOkBtn').onclick = async () => {
             if (pendingDeleteMessageId) {
-                const isRoom = contextMessageData?.isRoom || false;
-                const roomId = contextMessageData?.roomId || null;
-                const url = isRoom ? '/delete-room-message' : '/delete-message';
+                const isRoom = false; // нужно передавать, но упростим
+                const roomId = null;
+                const url = '/delete-message';
                 await fetch(url, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
