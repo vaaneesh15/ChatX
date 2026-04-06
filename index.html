@@ -237,6 +237,7 @@
             display: flex;
             flex-direction: column;
             gap: 16px;
+            flex: 1;
         }
         .room-item {
             display: flex;
@@ -322,23 +323,15 @@
             font-weight: 600;
             font-size: 1.1rem;
         }
-        .room-members-icon {
+        .room-members-count-btn {
             background: none;
             border: none;
+            color: var(--text-secondary);
             cursor: pointer;
-            width: 2rem;
-            height: 2rem;
+            font-size: 0.9rem;
             display: flex;
             align-items: center;
-            justify-content: center;
-            color: var(--text-secondary);
-        }
-        .room-members-icon svg {
-            width: 1.2rem;
-            height: 1.2rem;
-            stroke: currentColor;
-            stroke-width: 1.5;
-            fill: none;
+            gap: 4px;
         }
 
         .modal {
@@ -393,6 +386,15 @@
             padding: 0.5rem 0;
             border-bottom: 0.5px solid var(--border-light);
         }
+        .member-status {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+        }
+        .member-status.online { background-color: #34c759; }
+        .member-status.offline { background-color: #6c6c70; }
         .remove-member-btn {
             background: none;
             border: none;
@@ -783,14 +785,7 @@
             <div class="room-header">
                 <button class="back-btn" id="backToRoomsBtn">←</button>
                 <div class="room-title">${escapeHtml(currentRoom.name)}</div>
-                <button class="room-members-icon" id="showMembersBtn">
-                    <svg viewBox="0 0 24 24" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                        <circle cx="9" cy="7" r="4"></circle>
-                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-                    </svg>
-                </button>
+                <button class="room-members-count-btn" id="showMembersBtn">👥 ${roomMessages[currentRoom.id]?.membersCount || 0}</button>
             </div>
             <div class="chat-messages" id="roomMessagesContainer"></div>
             <div class="input-wrapper">
@@ -907,7 +902,15 @@
             const res = await fetch(`/room-messages?roomId=${roomId}&full_nick=${encodeURIComponent(currentUser.full_nick)}`);
             const data = await res.json();
             roomMessages[roomId] = data;
-            if (currentRoom && currentRoom.id === roomId) renderRoomMessages(roomId);
+            // Получаем количество участников для отображения в шапке
+            const membersRes = await fetch(`/room-members?roomId=${roomId}&full_nick=${encodeURIComponent(currentUser.full_nick)}`);
+            const members = await membersRes.json();
+            roomMessages[roomId].membersCount = members.length;
+            if (currentRoom && currentRoom.id === roomId) {
+                const btn = document.getElementById('showMembersBtn');
+                if (btn) btn.innerHTML = `👥 ${members.length}`;
+                renderRoomMessages(roomId);
+            }
         } catch(e) { console.error(e); }
     }
 
@@ -917,10 +920,11 @@
         const container = document.getElementById('membersList');
         container.innerHTML = '';
         members.forEach(member => {
+            const isOnline = onlineUsersSet.has(member.full_nick);
             const div = document.createElement('div');
             div.className = 'member-item';
             div.innerHTML = `
-                <div>${escapeHtml(member.full_nick)}</div>
+                <div><span class="member-status ${isOnline ? 'online' : 'offline'}"></span>${escapeHtml(member.full_nick)}</div>
                 <button class="remove-member-btn" data-nick="${escapeHtml(member.full_nick)}">−</button>
             `;
             container.appendChild(div);
@@ -960,7 +964,7 @@
         socket.emit('new room message', payload);
         input.value = '';
         autoResizeTextarea(input);
-        input.focus(); // не закрываем клавиатуру
+        input.focus();
     }
 
     function showContextMenu(messageId, full_nick, text, isOwn, isRoom, roomId) {
@@ -1041,6 +1045,7 @@
                 if (socket) socket.disconnect();
                 socket = io();
                 socket.emit('user online', currentUser.full_nick);
+                socket.on('online count', (count) => { onlineUsersSet.clear(); /* обновление будет отдельно */ });
                 socket.on('message received', (newMsg) => { 
                     publicMessages.push(newMsg); 
                     renderPublicMessages(); 
@@ -1102,6 +1107,7 @@
                 document.getElementById('appContainer').style.display = 'flex';
                 socket = io();
                 socket.emit('user online', currentUser.full_nick);
+                socket.on('online count', (count) => { onlineUsersSet.clear(); });
                 socket.on('message received', (newMsg) => { 
                     publicMessages.push(newMsg); 
                     renderPublicMessages(); 
@@ -1168,7 +1174,7 @@
         socket.emit('new message', payload);
         input.value = '';
         autoResizeTextarea(input);
-        input.focus(); // не закрываем клавиатуру
+        input.focus();
     }
 
     function autoResizeTextarea(textarea) {
