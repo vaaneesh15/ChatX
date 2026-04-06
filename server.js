@@ -90,22 +90,6 @@ async function initDB() {
       UNIQUE(message_id, full_nick, reaction)
     );
   `);
-
-  const adminFull = 'Ваниш#131';
-  const adminNick = 'Ваниш';
-  const adminTag = '#131';
-  const existingAdmin = await pool.query('SELECT id FROM users WHERE full_nick = $1', [adminFull]);
-  if (existingAdmin.rows.length === 0) {
-    const pinHash = await bcrypt.hash('0000', 10);
-    const token = uuidv4();
-    await pool.query(
-      'INSERT INTO users (nick, tag, full_nick, pin_hash, token, is_admin) VALUES ($1, $2, $3, $4, $5, $6)',
-      [adminNick, adminTag, adminFull, pinHash, token, true]
-    );
-    console.log('✅ Администратор Ваниш#131 создан (PIN: 0000)');
-  } else {
-    await pool.query('UPDATE users SET is_admin = TRUE WHERE full_nick = $1', [adminFull]);
-  }
   console.log('✅ База данных готова');
 }
 initDB();
@@ -119,6 +103,7 @@ async function isFullNickUnique(fullNick) {
   return res.rows.length === 0;
 }
 
+// Авторизация
 app.post('/auth', async (req, res) => {
   const { nick, pin } = req.body;
   if (!nick || nick.trim() === '' || !pin || pin.length !== 4 || !/^\d+$/.test(pin)) {
@@ -209,18 +194,20 @@ app.get('/messages', async (req, res) => {
   const result = await pool.query(`
     SELECT m.id, m.full_nick, m.text, m.reply_to_id, m.edited, m.created_at,
            u.is_admin,
-           COALESCE(r.reactions, '[]'::json) as reactions
+           COALESCE(r.reactions, '[]'::json) as reactions,
+           rep.full_nick as reply_nick, rep.text as reply_text
     FROM messages m
     LEFT JOIN users u ON m.full_nick = u.full_nick
-    LEFT JOIN (
-      SELECT message_id, json_agg(json_build_object('reaction', reaction, 'count', cnt, 'user_liked', EXISTS(SELECT 1 FROM message_reactions WHERE message_id = m.id AND full_nick = $1 AND reaction = reaction))) as reactions
+    LEFT JOIN LATERAL (
+      SELECT json_agg(json_build_object('reaction', reaction, 'count', cnt)) as reactions
       FROM (
-        SELECT message_id, reaction, COUNT(*) as cnt
+        SELECT reaction, COUNT(*) as cnt
         FROM message_reactions
-        GROUP BY message_id, reaction
+        WHERE message_id = m.id
+        GROUP BY reaction
       ) sub
-      GROUP BY message_id
-    ) r ON m.id = r.message_id
+    ) r ON true
+    LEFT JOIN messages rep ON m.reply_to_id = rep.id
     ORDER BY m.created_at ASC
   `);
   res.json(result.rows);
@@ -236,9 +223,8 @@ app.post('/add-reaction', async (req, res) => {
       [messageId, full_nick, reaction]
     );
     const reactionsRes = await pool.query(
-      `SELECT reaction, COUNT(*) as count, EXISTS(SELECT 1 FROM ${table} WHERE message_id = $1 AND full_nick = $2 AND reaction = reaction) as user_liked
-       FROM ${table} WHERE message_id = $1 GROUP BY reaction`,
-      [messageId, full_nick]
+      `SELECT reaction, COUNT(*) as count FROM ${table} WHERE message_id = $1 GROUP BY reaction`,
+      [messageId]
     );
     const reactions = reactionsRes.rows;
     if (isRoom) {
@@ -254,9 +240,8 @@ app.post('/add-reaction', async (req, res) => {
         [messageId, full_nick, reaction]
       );
       const reactionsRes = await pool.query(
-        `SELECT reaction, COUNT(*) as count, EXISTS(SELECT 1 FROM ${table} WHERE message_id = $1 AND full_nick = $2 AND reaction = reaction) as user_liked
-         FROM ${table} WHERE message_id = $1 GROUP BY reaction`,
-        [messageId, full_nick]
+        `SELECT reaction, COUNT(*) as count FROM ${table} WHERE message_id = $1 GROUP BY reaction`,
+        [messageId]
       );
       const reactions = reactionsRes.rows;
       if (isRoom) {
@@ -322,7 +307,7 @@ app.get('/room-members', async (req, res) => {
   const member = await pool.query('SELECT id FROM room_members WHERE room_id = $1 AND full_nick = $2', [roomId, full_nick]);
   if (member.rows.length === 0) return res.status(403).json([]);
   const members = await pool.query(`
-    SELECT u.full_nick, u.is_admin
+    SELECT u.full_nick
     FROM room_members rm
     JOIN users u ON rm.full_nick = u.full_nick
     WHERE rm.room_id = $1
@@ -353,7 +338,9 @@ app.post('/add-room-member', async (req, res) => {
   if (!roomId || !full_nick || !admin_nick) return res.status(400).json({ success: false });
   const room = await pool.query('SELECT created_by FROM rooms WHERE id = $1', [roomId]);
   if (room.rows.length === 0) return res.json({ success: false, error: 'Комната не найдена' });
-  if (room.rows[0].created_by !== admin_nick) return res.json({ success: false, error: 'Нет прав' });
+  if (room.rows[0].created_by !== admin_nick) {
+    return res.json({ success: false, error: 'Нет прав' });
+  }
   const userExists = await pool.query('SELECT full_nick FROM users WHERE full_nick = $1', [full_nick]);
   if (userExists.rows.length === 0) return res.json({ success: false, error: 'Пользователь не найден' });
   await pool.query('INSERT INTO room_members (room_id, full_nick) VALUES ($1, $2) ON CONFLICT DO NOTHING', [roomId, full_nick]);
@@ -366,7 +353,9 @@ app.post('/remove-room-member', async (req, res) => {
   if (!roomId || !full_nick || !admin_nick) return res.status(400).json({ success: false });
   const room = await pool.query('SELECT created_by FROM rooms WHERE id = $1', [roomId]);
   if (room.rows.length === 0) return res.json({ success: false });
-  if (room.rows[0].created_by !== admin_nick) return res.json({ success: false });
+  if (room.rows[0].created_by !== admin_nick) {
+    return res.json({ success: false });
+  }
   await pool.query('DELETE FROM room_members WHERE room_id = $1 AND full_nick = $2', [roomId, full_nick]);
   io.emit('room_member_removed', { roomId, full_nick });
   res.json({ success: true });
@@ -380,21 +369,23 @@ app.get('/room-messages', async (req, res) => {
   const result = await pool.query(`
     SELECT rm.id, rm.full_nick, rm.text, rm.reply_to_id, rm.edited, rm.created_at,
            u.is_admin,
-           COALESCE(r.reactions, '[]'::json) as reactions
+           COALESCE(r.reactions, '[]'::json) as reactions,
+           rep.full_nick as reply_nick, rep.text as reply_text
     FROM room_messages rm
     LEFT JOIN users u ON rm.full_nick = u.full_nick
-    LEFT JOIN (
-      SELECT message_id, json_agg(json_build_object('reaction', reaction, 'count', cnt, 'user_liked', EXISTS(SELECT 1 FROM room_reactions WHERE message_id = rm.id AND full_nick = $1 AND reaction = reaction))) as reactions
+    LEFT JOIN LATERAL (
+      SELECT json_agg(json_build_object('reaction', reaction, 'count', cnt)) as reactions
       FROM (
-        SELECT message_id, reaction, COUNT(*) as cnt
+        SELECT reaction, COUNT(*) as cnt
         FROM room_reactions
-        GROUP BY message_id, reaction
+        WHERE message_id = rm.id
+        GROUP BY reaction
       ) sub
-      GROUP BY message_id
-    ) r ON rm.id = r.message_id
-    WHERE rm.room_id = $2
+    ) r ON true
+    LEFT JOIN room_messages rep ON rm.reply_to_id = rep.id
+    WHERE rm.room_id = $1
     ORDER BY rm.created_at ASC
-  `, [full_nick, roomId]);
+  `, [roomId]);
   res.json(result.rows);
 });
 
@@ -430,6 +421,7 @@ app.post('/edit-room-message', async (req, res) => {
   }
 });
 
+// ========== ОНЛАЙН ==========
 const onlineUsers = new Set();
 io.on('connection', (socket) => {
   let currentFullNick = null;
