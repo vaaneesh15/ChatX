@@ -25,7 +25,7 @@
             width: 100%;
             transition: background-color 0.2s, color 0.2s;
         }
-        /* Тёмная тема (по умолчанию обычная тёмная) */
+        /* Тёмная тема (обычная) — по умолчанию */
         body.theme-dark-regular {
             --bg-page: #121212;
             --text-primary: #ffffff;
@@ -33,60 +33,21 @@
             --border-light: rgba(84,84,88,0.4);
             --input-bg: #1c1c1e;
         }
+        /* Чёрная тема */
         body.theme-dark-black {
             --bg-page: #000000;
             --text-primary: #ffffff;
             --text-secondary: #8e8e93;
-            --border-light: rgba(84,84,88,0.4);
+            --border-light: rgba(84,84,88,0.5);
             --input-bg: #0c0c0e;
         }
+        /* Тема-оттенок (с лёгким пастельным фоном) */
         body.theme-dark-tint {
-            --bg-page: #121212;
+            --bg-page: #1a1a2e;
             --text-primary: #ffffff;
-            --text-secondary: #8e8e93;
-            --border-light: rgba(var(--accent-rgb), 0.3);
-            --input-bg: #1c1c1e;
-        }
-        /* Светлая тема */
-        body.theme-light-regular {
-            --bg-page: #e5e5ea;
-            --text-primary: #000000;
-            --text-secondary: #3a3a3c;
-            --border-light: rgba(60,60,67,0.3);
-            --input-bg: #ffffff;
-        }
-        body.theme-light-white {
-            --bg-page: #ffffff;
-            --text-primary: #000000;
-            --text-secondary: #3a3a3c;
-            --border-light: rgba(60,60,67,0.2);
-            --input-bg: #f2f2f7;
-        }
-        body.theme-light-tint {
-            --bg-page: #e5e5ea;
-            --text-primary: #000000;
-            --text-secondary: #3a3a3c;
-            --border-light: rgba(var(--accent-rgb), 0.3);
-            --input-bg: #ffffff;
-        }
-        /* Адаптивная (системная) — без дополнительного класса, управляется через медиа */
-        @media (prefers-color-scheme: dark) {
-            body.theme-system {
-                --bg-page: #121212;
-                --text-primary: #ffffff;
-                --text-secondary: #8e8e93;
-                --border-light: rgba(84,84,88,0.4);
-                --input-bg: #1c1c1e;
-            }
-        }
-        @media (prefers-color-scheme: light) {
-            body.theme-system {
-                --bg-page: #e5e5ea;
-                --text-primary: #000000;
-                --text-secondary: #3a3a3c;
-                --border-light: rgba(60,60,67,0.3);
-                --input-bg: #ffffff;
-            }
+            --text-secondary: #a0a0b0;
+            --border-light: rgba(var(--accent-rgb), 0.35);
+            --input-bg: #252540;
         }
 
         /* Акценты */
@@ -99,7 +60,6 @@
         body.accent-yellow { --accent-color: #eab308; --accent-rgb: 234, 179, 8; }
         body.accent-mint { --accent-color: #10b981; --accent-rgb: 16, 185, 129; }
 
-        /* Затемнение при нажатии на iOS и везде */
         button, .clickable {
             cursor: pointer;
             -webkit-tap-highlight-color: transparent;
@@ -212,7 +172,7 @@
         }
         .nick-main { color: var(--text-secondary); }
         .own-message .nick-main { color: var(--accent-color); }
-        .nick-tag { color:#6c6c70; font-weight:400; font-size:0.7rem; }
+        .nick-tag { color: var(--text-secondary); opacity:0.7; font-weight:400; font-size:0.7rem; }
         .message-actions-btn {
             position: absolute; right: 0; top: 0;
             background: none; border: none;
@@ -429,12 +389,11 @@
             background:var(--accent-color); border:none; width:2.5rem; height:2.5rem; border-radius:2rem;
             color:white; font-size:1.3rem; cursor:pointer; display:flex; align-items:center; justify-content:center;
         }
-        /* Индикаторы ответа и редактирования */
+        /* Индикаторы ответа и редактирования — как блок ответа в сообщении */
         .reply-indicator, .edit-indicator {
             margin: 0.5rem 1rem 0;
-            background: var(--input-bg);
+            background: transparent;
             border-left: 2px solid var(--accent-color);
-            border-radius: 0.5rem;
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -467,7 +426,7 @@
             text-overflow: ellipsis;
         }
         .cancel-reply, .cancel-edit {
-            background: var(--bg-page);
+            background: var(--input-bg);
             border: none;
             border-radius: 1rem;
             width: 2rem;
@@ -604,14 +563,6 @@
                 <button id="changePinBtn">Сменить</button>
             </div>
             <div class="setting-row">
-                <span class="setting-label">Светлая тема</span>
-                <select id="lightThemeSelect">
-                    <option value="regular">Обычная</option>
-                    <option value="white">Белая</option>
-                    <option value="tint">Оттенок</option>
-                </select>
-            </div>
-            <div class="setting-row">
                 <span class="setting-label">Тёмная тема</span>
                 <select id="darkThemeSelect">
                     <option value="regular">Обычная</option>
@@ -621,7 +572,7 @@
             </div>
             <div class="setting-row">
                 <span class="setting-label">Оттенок</span>
-                <select id="accentSelect" class="accent-select">
+                <select id="accentSelect">
                     <option value="blue">Синий</option>
                     <option value="purple">Фиолетовый</option>
                     <option value="pink">Розовый</option>
@@ -666,16 +617,14 @@
         accent: 'blue', 
         showDate: true, 
         showReactions: true,
-        themeMode: 'system', // system, light, dark
-        lightThemeVariant: 'regular',
         darkThemeVariant: 'regular'
     };
     
     let publicMessages = [];
-    let editingMessage = null;  // { id, text }
+    let editingMessage = null;
     let pendingDeleteMessageId = null;
     let currentReactionMessage = null;
-    let replyingTo = null;      // { messageId, full_nick, text }
+    let replyingTo = null;
     let contextMessageData = null;
 
     let typingTimeouts = {};
@@ -700,23 +649,11 @@
         }
     }
 
-    // Применение темы
     function applyTheme() {
-        const mode = appSettings.themeMode;
-        // Убираем все классы тем
-        document.body.classList.remove('theme-system', 'theme-light-regular', 'theme-light-white', 'theme-light-tint', 'theme-dark-regular', 'theme-dark-black', 'theme-dark-tint');
-        if (mode === 'system') {
-            document.body.classList.add('theme-system');
-        } else if (mode === 'light') {
-            const variant = appSettings.lightThemeVariant || 'regular';
-            document.body.classList.add(`theme-light-${variant}`);
-        } else if (mode === 'dark') {
-            const variant = appSettings.darkThemeVariant || 'regular';
-            document.body.classList.add(`theme-dark-${variant}`);
-        }
-        // Сохраняем в localStorage
+        const variant = appSettings.darkThemeVariant || 'regular';
+        document.body.classList.remove('theme-dark-regular', 'theme-dark-black', 'theme-dark-tint');
+        document.body.classList.add(`theme-dark-${variant}`);
         localStorage.setItem('simply_settings', JSON.stringify(appSettings));
-        // Обновляем цвет статус-бара
         const color = getComputedStyle(document.body).getPropertyValue('--accent-color').trim();
         if (color) {
             const meta = document.getElementById('themeColorMeta');
@@ -888,7 +825,6 @@
         const input = document.getElementById('publicMessageInput');
         let text = input.value.trim();
         if (!text && !replyingTo && !editingMessage) return;
-        // Если режим редактирования
         if (editingMessage) {
             editMessage(editingMessage.id, text);
             editingMessage = null;
@@ -897,7 +833,6 @@
             hideEditIndicator();
             return;
         }
-        // Если режим ответа
         if (replyingTo) {
             const payload = { full_nick: currentUser.full_nick, text, reply_to_id: replyingTo.messageId };
             socket.emit('new message', payload);
@@ -908,7 +843,6 @@
             input.focus();
             return;
         }
-        // Обычное сообщение
         const payload = { full_nick: currentUser.full_nick, text };
         socket.emit('new message', payload);
         input.value = '';
@@ -955,7 +889,6 @@
             };
         }
         document.getElementById('ctx-reply').onclick = () => {
-            // Сбрасываем редактирование, если было
             if (editingMessage) {
                 editingMessage = null;
                 hideEditIndicator();
@@ -969,7 +902,6 @@
         document.getElementById('ctx-copy').onclick = () => { navigator.clipboard.writeText(text); document.getElementById('contextMenuModal').style.display = 'none'; };
         if (isOwn) {
             document.getElementById('ctx-edit').onclick = () => {
-                // Сбрасываем ответ, если был
                 if (replyingTo) {
                     replyingTo = null;
                     hideReplyIndicator();
@@ -1119,10 +1051,8 @@
                 // Настройки
                 document.getElementById('showDateToggle').checked = appSettings.showDate !== false;
                 document.getElementById('showReactionsToggle').checked = appSettings.showReactions !== false;
-                document.getElementById('lightThemeSelect').value = appSettings.lightThemeVariant || 'regular';
                 document.getElementById('darkThemeSelect').value = appSettings.darkThemeVariant || 'regular';
                 document.getElementById('accentSelect').value = appSettings.accent;
-                // Слушатели настроек
                 document.getElementById('showDateToggle').onchange = (e) => {
                     appSettings.showDate = e.target.checked;
                     localStorage.setItem('simply_settings', JSON.stringify(appSettings));
@@ -1133,14 +1063,9 @@
                     localStorage.setItem('simply_settings', JSON.stringify(appSettings));
                     renderPublicMessages();
                 };
-                document.getElementById('lightThemeSelect').onchange = (e) => {
-                    appSettings.lightThemeVariant = e.target.value;
-                    if (appSettings.themeMode === 'light') applyTheme();
-                    localStorage.setItem('simply_settings', JSON.stringify(appSettings));
-                };
                 document.getElementById('darkThemeSelect').onchange = (e) => {
                     appSettings.darkThemeVariant = e.target.value;
-                    if (appSettings.themeMode === 'dark') applyTheme();
+                    applyTheme();
                     localStorage.setItem('simply_settings', JSON.stringify(appSettings));
                 };
                 document.getElementById('accentSelect').onchange = e => applyAccent(e.target.value);
@@ -1176,7 +1101,6 @@
                 document.getElementById('displayNickWithTag').innerHTML = `${escapeHtml(n)}<span style="color:var(--text-secondary);">${escapeHtml(t)}</span>`;
                 document.getElementById('showDateToggle').checked = appSettings.showDate !== false;
                 document.getElementById('showReactionsToggle').checked = appSettings.showReactions !== false;
-                document.getElementById('lightThemeSelect').value = appSettings.lightThemeVariant || 'regular';
                 document.getElementById('darkThemeSelect').value = appSettings.darkThemeVariant || 'regular';
                 document.getElementById('accentSelect').value = appSettings.accent;
                 document.getElementById('showDateToggle').onchange = (e) => {
@@ -1189,14 +1113,9 @@
                     localStorage.setItem('simply_settings', JSON.stringify(appSettings));
                     renderPublicMessages();
                 };
-                document.getElementById('lightThemeSelect').onchange = (e) => {
-                    appSettings.lightThemeVariant = e.target.value;
-                    if (appSettings.themeMode === 'light') applyTheme();
-                    localStorage.setItem('simply_settings', JSON.stringify(appSettings));
-                };
                 document.getElementById('darkThemeSelect').onchange = (e) => {
                     appSettings.darkThemeVariant = e.target.value;
-                    if (appSettings.themeMode === 'dark') applyTheme();
+                    applyTheme();
                     localStorage.setItem('simply_settings', JSON.stringify(appSettings));
                 };
                 document.getElementById('accentSelect').onchange = e => applyAccent(e.target.value);
