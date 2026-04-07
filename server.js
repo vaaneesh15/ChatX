@@ -55,9 +55,17 @@ async function initDB() {
     CREATE TABLE IF NOT EXISTS rooms (
       id SERIAL PRIMARY KEY,
       name VARCHAR(100) NOT NULL,
-      password_hash TEXT NOT NULL,
       created_at TIMESTAMP DEFAULT NOW()
     );
+  `);
+  // Добавляем колонку password_hash, если её нет
+  await pool.query(`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='rooms' AND column_name='password_hash') THEN
+        ALTER TABLE rooms ADD COLUMN password_hash TEXT NOT NULL DEFAULT '';
+      END IF;
+    END $$;
   `);
   await pool.query(`
     CREATE TABLE IF NOT EXISTS room_members (
@@ -324,6 +332,14 @@ app.get('/rooms', async (req, res) => {
     WHERE rm.full_nick = $1
   `, [full_nick]);
   res.json(result.rows);
+});
+
+app.post('/leave-room', async (req, res) => {
+  const { roomId, full_nick } = req.body;
+  if (!roomId || !full_nick) return res.status(400).json({ success: false });
+  await pool.query('DELETE FROM room_members WHERE room_id = $1 AND full_nick = $2', [roomId, full_nick]);
+  // Не удаляем комнату, даже если участников не осталось
+  res.json({ success: true });
 });
 
 app.get('/room-messages', async (req, res) => {
