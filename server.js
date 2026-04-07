@@ -20,11 +20,10 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
-// Конфигурация OneSignal
+// ========== ONESIGNAL КОНФИГУРАЦИЯ ==========
 const ONESIGNAL_APP_ID = '22366383-4ee8-4a91-b727-1c11e6bdc218';
-const ONESIGNAL_API_KEY = 'os_v2_app_ei3gha2o5bfjdnzhdqi6npocddbjq34lgqau4puyxuwqha52uog4f4hblgnplww65zzid2uneqn3nfkoxigordrzcjzwzedh6qtkd5a';
+const ONESIGNAL_API_KEY = 'os_v2_org_be6iriiaofgipeoubnkfo7cfqilanreiaxxu5wfsul55imfabep5ic7li2msvqgt3xxa5gdh5zakjyd5sqzljjkeainb7vdqnnsolfi';
 
-// Список чатов (совпадает с клиентским)
 const CHATS = [
   { id: 1, name: "Общий чат" },
   { id: 2, name: "Чат 1" },
@@ -39,7 +38,6 @@ async function sendOneSignalNotification(title, message, excludeUserId = null) {
     headings: { en: title },
     included_segments: ['Subscribed Users']
   };
-  // Если нужно исключить отправителя – используем фильтр
   if (excludeUserId) {
     data.filters = [
       { field: 'tag', key: 'external_user_id', relation: '!=', value: excludeUserId }
@@ -52,12 +50,13 @@ async function sendOneSignalNotification(title, message, excludeUserId = null) {
         'Authorization': `Basic ${ONESIGNAL_API_KEY}`
       }
     });
-    console.log(`✅ Уведомление отправлено: ${title}`, response.data);
+    console.log(`✅ Уведомление отправлено: ${title}`, response.data.id);
   } catch (err) {
     console.error('❌ Ошибка отправки уведомления:', err.response?.data || err.message);
   }
 }
 
+// ========== ИНИЦИАЛИЗАЦИЯ БАЗЫ ДАННЫХ ==========
 async function initDB() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS users (
@@ -104,6 +103,7 @@ async function isFullNickUnique(fullNick) {
   return res.rows.length === 0;
 }
 
+// ========== АВТОРИЗАЦИЯ ==========
 app.post('/auth', async (req, res) => {
   const { nick, pin } = req.body;
   if (!nick || nick.trim() === '' || !pin || pin.length !== 4 || !/^\d+$/.test(pin)) {
@@ -181,6 +181,7 @@ app.post('/change-pin', async (req, res) => {
   res.json({ success: true });
 });
 
+// ========== МАРШРУТЫ ДЛЯ ЧАТОВ ==========
 app.get('/chat-messages', async (req, res) => {
   const { chatId, full_nick } = req.query;
   if (!chatId || !full_nick) return res.status(400).json([]);
@@ -272,6 +273,7 @@ app.post('/edit-chat-message', async (req, res) => {
   }
 });
 
+// ========== SOCKET.IO ==========
 const onlineUsers = new Set();
 io.on('connection', (socket) => {
   let currentFullNick = null;
@@ -335,12 +337,12 @@ io.on('connection', (socket) => {
     }
     io.to(`chat_${chatId}`).emit('chat message received', { chatId, message: newMsg });
 
-    // Отправляем уведомление через OneSignal (исключая отправителя)
+    // Отправка уведомления
     const chatName = CHATS.find(c => c.id === chatId)?.name || `Чат ${chatId}`;
     await sendOneSignalNotification(
       `Новое сообщение в ${chatName}`,
       `${full_nick}: ${text.substring(0, 100)}`,
-      full_nick  // external_user_id отправителя
+      full_nick
     );
   });
 });
