@@ -158,23 +158,6 @@
             width: 24px; height: 24px; border-radius: 12px;
         }
         .message-actions-btn svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; }
-        .reply-context {
-            margin-bottom: 6px;
-            padding-left: 8px;
-            border-left: 2px solid var(--accent-color);
-            cursor: pointer;
-        }
-        .reply-context .reply-nick {
-            font-size: 0.7rem;
-            color: var(--accent-color);
-            font-weight: 600;
-        }
-        .reply-context .reply-text {
-            font-size: 0.8rem;
-            color: var(--text-secondary);
-            white-space: pre-wrap;
-            word-break: break-word;
-        }
         .message-text { 
             font-size:1rem; line-height:1.4; color:var(--text-primary); 
             white-space:pre-wrap; word-break:break-word; 
@@ -283,45 +266,9 @@
             background:var(--accent-color); border:none; width:2.5rem; height:2.5rem; border-radius:2rem;
             color:white; font-size:1.3rem; cursor:pointer; display:flex; align-items:center; justify-content:center;
         }
-        .reply-indicator {
-            margin: 0.5rem 1rem 0;
-            padding-left: 8px;
-            border-left: 2px solid var(--accent-color);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 8px;
-        }
-        .reply-indicator .reply-content {
-            flex: 1;
-        }
-        .reply-indicator .reply-nick {
-            font-size: 0.7rem;
-            color: var(--accent-color);
-            font-weight: 600;
-        }
-        .reply-indicator .reply-text {
-            font-size: 0.8rem;
-            color: var(--text-secondary);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        .cancel-reply {
-            background: none;
-            border: none;
-            color: var(--text-secondary);
-            cursor: pointer;
-            font-size: 1.2rem;
-        }
 
         .context-menu-modal .modal-content {
-            max-width: 260px;
-        }
-        .context-message-nick {
-            font-size: 0.75rem;
-            margin-bottom: 0.5rem;
-            text-align: center;
+            max-width: 300px;
         }
         .context-message-preview {
             background: #2c2c2e;
@@ -329,7 +276,10 @@
             padding: 0.5rem;
             margin-bottom: 1rem;
             word-break: break-word;
-            font-size: 0.85rem;
+        }
+        .context-message-nick {
+            font-size: 0.75rem;
+            margin-bottom: 0.25rem;
             color: var(--text-secondary);
         }
         .context-menu-buttons {
@@ -347,7 +297,7 @@
             cursor: pointer;
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 10px;
             width: 100%;
         }
         .context-menu-buttons button svg {
@@ -436,7 +386,6 @@
     let editingMessageId = null;
     let pendingDeleteMessageId = null;
     let currentReactionMessage = null;
-    let replyingTo = null;
 
     function escapeHtml(str) { return str.replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'})[m]); }
     function splitFullNick(full) { const h=full.lastIndexOf('#'); if(h===-1) return {nick:full,tag:''}; return {nick:full.slice(0,h),tag:full.slice(h)}; }
@@ -477,15 +426,6 @@
             msgDiv.setAttribute('data-full-nick', msg.full_nick);
             let adminStar = '';
             if (msg.is_admin) adminStar = '<span class="admin-star">★</span>';
-            let replyHtml = '';
-            if (msg.reply_to_id && msg.reply_nick && msg.reply_text) {
-                replyHtml = `
-                    <div class="reply-context" data-message="${msg.reply_to_id}">
-                        <div class="reply-nick">${escapeHtml(msg.reply_nick)}</div>
-                        <div class="reply-text">${escapeHtml(msg.reply_text)}</div>
-                    </div>
-                `;
-            }
             let reactionsHtml = '';
             if (msg.reactions && msg.reactions.length) {
                 reactionsHtml = '<div class="reactions-container">';
@@ -502,7 +442,6 @@
                         ${adminStar}
                     </div>
                 </div>
-                ${replyHtml}
                 <div class="message-text">${linkify(escapeHtml(msg.text))}</div>
                 <div class="message-footer">
                     <button class="reaction-btn" data-message="${msg.id}"><svg viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" fill="#ff375f"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></button>
@@ -532,12 +471,6 @@
             const messageId = parseInt(btn.dataset.message);
             addReaction(messageId, reaction);
         }));
-        document.querySelectorAll('.reply-context').forEach(el => {
-            el.addEventListener('click', () => {
-                const targetId = parseInt(el.dataset.message);
-                scrollToMessage(targetId);
-            });
-        });
         document.querySelectorAll('.message-nick').forEach(el => {
             el.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -591,61 +524,25 @@
     function showContextMenu(messageId, full_nick, text, isOwn) {
         const { nick, tag } = splitFullNick(full_nick);
         document.getElementById('contextMessageNick').innerHTML = `<span class="nick-main">${escapeHtml(nick)}</span><span class="nick-tag">${escapeHtml(tag)}</span>`;
-        document.getElementById('contextMessagePreview').innerHTML = linkify(escapeHtml(text.substring(0, 150))) + (text.length>150?'…':'');
+        document.getElementById('contextMessagePreview').innerHTML = linkify(escapeHtml(text));
         const container = document.getElementById('contextMenuButtons');
         container.innerHTML = `
-            <button id="ctx-react"><span>😊</span> Реакция</button>
-            <button id="ctx-reply"><span>↩️</span> Ответить</button>
-            ${isOwn ? `<button id="ctx-edit"><svg viewBox="0 0 24 24"><path d="M17 3l4 4-7 7H10v-4l7-7z"/><path d="M4 20h16"/></svg> Редактировать</button>` : ''}
-            <button id="ctx-copy"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg> Скопировать</button>
-            ${isOwn ? `<button id="ctx-delete"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg> Удалить</button>` : ''}
-            <button id="ctx-close"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg> Закрыть</button>
+            <button id="ctx-react"><svg viewBox="0 0 24 24" stroke-width="1.5"><circle cx="12" cy="12" r="1.5"/><path d="M12 2l2.4 7.2h7.6l-6 4.8 2.4 7.2-6-4.8-6 4.8 2.4-7.2-6-4.8h7.6z"/></svg> Реакция</button>
+            <button id="ctx-copy"><svg viewBox="0 0 24 24" stroke-width="1.5"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg> Скопировать</button>
+            ${isOwn ? `<button id="ctx-edit"><svg viewBox="0 0 24 24" stroke-width="1.5"><path d="M17 3l4 4-7 7H10v-4l7-7z"/><path d="M4 20h16"/></svg> Редактировать</button>` : ''}
+            ${isOwn ? `<button id="ctx-delete"><svg viewBox="0 0 24 24" stroke-width="1.5"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg> Удалить</button>` : ''}
+            <button id="ctx-close"><svg viewBox="0 0 24 24" stroke-width="1.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg> Закрыть</button>
         `;
         document.getElementById('ctx-react').onclick = () => {
             currentReactionMessage = messageId;
             showReactionPicker();
             document.getElementById('contextMenuModal').style.display = 'none';
         };
-        document.getElementById('ctx-reply').onclick = () => {
-            replyingTo = { messageId, full_nick, text };
-            showReplyIndicator(replyingTo);
-            document.getElementById('contextMenuModal').style.display = 'none';
-            document.getElementById('publicMessageInput').focus();
-        };
         document.getElementById('ctx-copy').onclick = () => { navigator.clipboard.writeText(text); document.getElementById('contextMenuModal').style.display = 'none'; };
         document.getElementById('ctx-edit').onclick = () => { editingMessageId = messageId; document.getElementById('contextMenuModal').style.display = 'none'; renderPublicMessages(); };
         document.getElementById('ctx-delete').onclick = () => { pendingDeleteMessageId = messageId; document.getElementById('confirmMessage').innerText = 'Удалить сообщение?'; document.getElementById('confirmModal').style.display = 'flex'; document.getElementById('contextMenuModal').style.display = 'none'; };
         document.getElementById('ctx-close').onclick = () => document.getElementById('contextMenuModal').style.display = 'none';
         document.getElementById('contextMenuModal').style.display = 'flex';
-    }
-
-    function showReplyIndicator(reply) {
-        let indicator = document.getElementById('replyIndicator');
-        if (!indicator) {
-            const div = document.createElement('div');
-            div.id = 'replyIndicator';
-            div.className = 'reply-indicator';
-            div.innerHTML = `
-                <div class="reply-content">
-                    <div class="reply-nick">${escapeHtml(reply.full_nick)}</div>
-                    <div class="reply-text">${escapeHtml(reply.text)}</div>
-                </div>
-                <button class="cancel-reply">✕</button>
-            `;
-            const wrapper = document.querySelector('.input-wrapper');
-            wrapper.parentNode.insertBefore(div, wrapper);
-            div.querySelector('.cancel-reply').onclick = () => { replyingTo = null; div.remove(); };
-        } else {
-            indicator.querySelector('.reply-nick').innerHTML = escapeHtml(reply.full_nick);
-            indicator.querySelector('.reply-text').innerHTML = escapeHtml(reply.text);
-            indicator.style.display = 'flex';
-            indicator.querySelector('.cancel-reply').onclick = () => { replyingTo = null; indicator.style.display = 'none'; };
-        }
-    }
-
-    function hideReplyIndicator() {
-        const indicator = document.getElementById('replyIndicator');
-        if (indicator) indicator.style.display = 'none';
     }
 
     async function authWithPin(nick, pin) {
@@ -728,20 +625,9 @@
 
     function sendPublicMessage() {
         const input = document.getElementById('publicMessageInput');
-        let text = input.value.trim();
-        if (!text && !replyingTo) return;
-        if (!text && replyingTo) {
-            replyingTo = null;
-            hideReplyIndicator();
-            return;
-        }
-        const payload = { full_nick: currentUser.full_nick, text };
-        if (replyingTo) {
-            payload.reply_to_id = replyingTo.messageId;
-            replyingTo = null;
-            hideReplyIndicator();
-        }
-        socket.emit('new message', payload);
+        const text = input.value.trim();
+        if (!text || !socket || !currentUser.full_nick) return;
+        socket.emit('new message', { full_nick: currentUser.full_nick, text });
         input.value = '';
         autoResizeTextarea(input);
         input.focus();
@@ -784,16 +670,6 @@
         const data = await res.json();
         if (data.success) alert('PIN изменён');
         else alert(data.error || 'Ошибка');
-    }
-
-    function scrollToMessage(messageId) {
-        const element = document.querySelector(`.message-item[data-id="${messageId}"]`);
-        if (element) {
-            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            element.style.transition = 'background-color 0.3s';
-            element.style.backgroundColor = 'var(--accent-color)';
-            setTimeout(() => { element.style.backgroundColor = ''; }, 1000);
-        }
     }
 
     window.onload = async () => {
