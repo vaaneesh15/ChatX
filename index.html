@@ -34,6 +34,7 @@
             width: 100%;
             transition: background-color 0.2s, color 0.2s;
         }
+        /* Тёмная тема: обычная */
         body.theme-dark-regular {
             --bg-page: #121212;
             --text-primary: #ffffff;
@@ -41,6 +42,7 @@
             --border-light: rgba(84,84,88,0.4);
             --input-bg: #1c1c1e;
         }
+        /* Тёмная тема: чёрная */
         body.theme-dark-black {
             --bg-page: #000000;
             --text-primary: #ffffff;
@@ -48,7 +50,7 @@
             --border-light: rgba(84,84,88,0.4);
             --input-bg: #0c0c0e;
         }
-        /* Акценты без подписей в скобках — просто названия цветов */
+        /* Акценты */
         body.accent-blue { --accent-color: #0a84ff; --accent-rgb: 10, 132, 255; }
         body.accent-ios-blue { --accent-color: #007aff; --accent-rgb: 0, 122, 255; }
         body.accent-purple { --accent-color: #af52de; --accent-rgb: 175, 82, 222; }
@@ -71,58 +73,24 @@
 
         .login-screen {
             position: fixed; top:0; left:0; width:100%; height:100%;
-            background: var(--bg-page);
-            display: flex;
-            align-items: flex-start;
-            justify-content: center;
-            padding-top: 25vh;
-            z-index:2000;
-            overflow: hidden;
+            background: var(--bg-page); display: flex; align-items: flex-start; justify-content: center;
+            padding-top: 25vh; z-index:2000; overflow: hidden;
         }
         .login-card {
-            background: var(--input-bg);
-            border-radius: 2rem;
-            padding: 2rem;
-            width:90%;
-            max-width:320px;
-            border:1px solid var(--border-light);
-            box-shadow:0 8px 20px rgba(0,0,0,0.3);
+            background: var(--input-bg); border-radius: 2rem; padding: 2rem; width:90%; max-width:320px;
+            border:1px solid var(--border-light); box-shadow:0 8px 20px rgba(0,0,0,0.3);
         }
-        .login-card h2 {
-            margin-bottom:1.5rem;
-            text-align:center;
-            font-weight:590;
-            color: var(--text-primary);
-        }
+        .login-card h2 { margin-bottom:1.5rem; text-align:center; font-weight:590; }
         .login-card input {
-            width:100%;
-            padding:0.8rem;
-            margin-bottom:1rem;
-            background: var(--bg-page);
-            border:1px solid var(--border-light);
-            border-radius:1rem;
-            color:var(--text-primary);
-            font-size:1rem;
-            outline:none;
+            width:100%; padding:0.8rem; margin-bottom:1rem; background: var(--bg-page);
+            border:1px solid var(--border-light); border-radius:1rem; color:var(--text-primary); font-size:1rem; outline:none;
         }
-        .login-card input:focus {
-            border-color:var(--accent-color);
-        }
+        .login-card input:focus { border-color:var(--accent-color); }
         .login-card button {
-            width:100%;
-            padding:0.8rem;
-            background:var(--accent-color);
-            border:none;
-            border-radius:1rem;
-            color:white;
-            font-weight:600;
+            width:100%; padding:0.8rem; background:var(--accent-color); border:none;
+            border-radius:1rem; color:white; font-weight:600;
         }
-        .login-card .error {
-            color:#ff6b6b;
-            font-size:0.8rem;
-            margin-top:0.5rem;
-            text-align:center;
-        }
+        .login-card .error { color:#ff6b6b; font-size:0.8rem; margin-top:0.5rem; text-align:center; }
 
         .app-container {
             height: 100%;
@@ -137,7 +105,6 @@
             background: var(--input-bg);
             padding-top: env(safe-area-inset-top, 0);
             border-bottom: 1px solid var(--border-light);
-            /* убираем верхнюю полоску */
             display: flex;
             justify-content: center;
             gap: 0.25rem;
@@ -185,13 +152,14 @@
             width: 100%;
             position: relative;
             background: transparent;
-        }
-        /* выделение текста сообщения при клике на ответ */
-        .message-text.highlight-text {
-            background-color: rgba(var(--accent-rgb), 0.4);
             transition: background-color 0.3s;
+        }
+        .message-text.highlight {
+            background-color: rgba(var(--accent-rgb), 0.3);
             border-radius: 0.5rem;
-            padding: 0.2rem 0;
+            padding: 0 0.2rem;
+            display: inline-block;
+            width: fit-content;
         }
         .message-header {
             display: flex;
@@ -389,11 +357,6 @@
             align-items: center;
             justify-content: center;
         }
-        .chat-title {
-            flex: 1;
-            font-weight: 600;
-            font-size: 1.1rem;
-        }
 
         .settings-container { 
             padding: 1.5rem; 
@@ -435,18 +398,16 @@
             font-size: 0.9rem;
             appearance: none;
             cursor: pointer;
-            min-width: 140px;
+            min-width: 120px;
             text-align: center;
-        }
-        .setting-row button {
-            padding: 0.6rem 1rem;
-            background: var(--input-bg);
-        }
-        .accent-select {
             background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
             background-repeat: no-repeat;
             background-position: right 1rem center;
             background-size: 1.2rem;
+        }
+        .setting-row button {
+            background-image: none;
+            padding: 0.6rem 1rem;
         }
         .switch {
             position: relative;
@@ -508,6 +469,7 @@
             background:var(--accent-color); border:none; width:2.5rem; height:2.5rem; border-radius:2rem;
             color:white; font-size:1.3rem; cursor:pointer; display:flex; align-items:center; justify-content:center;
         }
+        /* Индикаторы ответа и редактирования */
         .reply-indicator, .edit-indicator {
             margin: 0.5rem 1rem 0;
             background: var(--input-bg);
@@ -562,7 +524,7 @@
 
         .modal {
             display: none; position: fixed; top:0; left:0; width:100%; height:100%;
-            background-color:rgba(0,0,0,0.7); backdrop-filter:blur(12px); z-index:1000;
+            background-color:rgba(0,0,0,0.7); backdrop-filter:blur(12px); z-index:10000;
             justify-content:center; align-items:center;
         }
         .modal-content {
@@ -684,9 +646,9 @@
             </div>
             <div class="setting-row">
                 <span class="setting-label">Оттенок</span>
-                <select id="accentSelect" class="accent-select">
-                    <option value="blue">Стандартный</option>
-                    <option value="ios-blue">Синий</option>
+                <select id="accentSelect">
+                    <option value="blue">Синий</option>
+                    <option value="ios-blue">Синий (iOS)</option>
                     <option value="purple">Фиолетовый</option>
                     <option value="pink">Розовый</option>
                     <option value="red">Красный</option>
@@ -736,6 +698,13 @@
         </div>
     </div>
 </div>
+
+<!-- Модальные окна -->
+<div id="changeNickModal" class="modal"><div class="modal-content"><h3>Смена ника</h3><div class="modal-setting"><label>Новый ник</label><input type="text" id="newNickInput" placeholder="Новый ник"></div><div class="modal-buttons"><button id="cancelNickBtn">Закрыть</button><button id="applyNickBtn">Применить</button></div></div></div>
+<div id="changePinModal" class="modal"><div class="modal-content"><h3>Смена PIN</h3><div class="modal-setting"><label>Старый PIN</label><input type="password" id="oldPinInput" placeholder="Старый PIN" maxlength="4" inputmode="numeric"></div><div class="modal-setting"><label>Новый PIN</label><input type="password" id="newPinInput" placeholder="Новый PIN" maxlength="4" inputmode="numeric"></div><div class="modal-buttons"><button id="cancelPinBtn">Закрыть</button><button id="applyPinBtn">Применить</button></div></div></div>
+<div id="contextMenuModal" class="modal context-menu-modal"><div class="modal-content"><div id="contextMessageNick" class="context-message-nick"></div><div id="contextMessagePreview" class="context-message-preview"></div><div class="context-menu-buttons" id="contextMenuButtons"></div></div></div>
+<div id="confirmModal" class="modal"><div class="modal-content"><h3>Подтверждение</h3><p id="confirmMessage" style="margin-bottom:1rem;">Вы уверены?</p><div class="modal-buttons"><button id="confirmCancelBtn">Отмена</button><button id="confirmOkBtn">Удалить</button></div></div></div>
+<div id="reactionPickerModal" class="modal"><div class="modal-content"><h3>Выберите реакцию</h3><div class="reactions-picker" id="reactionsPicker"></div><div class="modal-buttons"><button id="closeReactionPickerBtn">Закрыть</button></div></div></div>
 
 <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
 <script>
@@ -821,6 +790,14 @@
             if (rgb) document.body.style.setProperty('--accent-rgb', rgb.join(','));
             const meta = document.getElementById('themeColorMeta');
             if (meta) meta.setAttribute('content', color);
+        }
+    }
+
+    // Применяем тему и акцент к экрану логина и основному приложению
+    function applyThemeToLogin() {
+        const loginScreen = document.getElementById('loginScreen');
+        if (loginScreen) {
+            // Уже использует CSS-переменные, которые меняются через классы body
         }
     }
 
@@ -1217,14 +1194,30 @@
         const element = document.querySelector(`#chatMessagesContainer .message-item[data-id="${messageId}"] .message-text`);
         if (element) {
             element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            element.classList.add('highlight-text');
-            setTimeout(() => element.classList.remove('highlight-text'), 1000);
+            element.classList.add('highlight');
+            setTimeout(() => element.classList.remove('highlight'), 1000);
         }
     }
 
     function autoResizeTextarea(textarea) {
         textarea.style.height = 'auto';
         textarea.style.height = Math.min(textarea.scrollHeight, 150) + 'px';
+    }
+
+    function showReactionPicker() {
+        const pickerDiv = document.getElementById('reactionsPicker');
+        const reactionsList = ['❤️','🔥','👍','👎','👌','🖕','👀','😁','😭','😔','😩','😳','😠','😨','💩','👻','👽','👾','💋','💊'];
+        pickerDiv.innerHTML = '';
+        reactionsList.forEach(emoji => {
+            const btn = document.createElement('button');
+            btn.textContent = emoji;
+            btn.onclick = () => {
+                addChatReaction(currentReactionMessage, emoji);
+                document.getElementById('reactionPickerModal').style.display = 'none';
+            };
+            pickerDiv.appendChild(btn);
+        });
+        document.getElementById('reactionPickerModal').style.display = 'flex';
     }
 
     async function authWithPin(nick, pin) {
@@ -1246,9 +1239,10 @@
                     chatMessages[chatId].push(message);
                     if (currentChatId === chatId) renderChatMessages(chatId);
                     if (appSettings.notifications && window.OneSignalDeferred && chatId !== currentChatId) {
+                        const chatName = CHATS.find(c => c.id === chatId)?.name || `Чат ${chatId}`;
                         OneSignalDeferred.push(async function(OneSignal) {
                             await OneSignal.sendNotification({
-                                title: `Новое сообщение в ${CHATS.find(c => c.id === chatId)?.name}`,
+                                title: `Новое сообщение в ${chatName}`,
                                 message: `${message.full_nick}: ${message.text.substring(0, 100)}`,
                                 url: window.location.href
                             });
@@ -1327,9 +1321,10 @@
                     chatMessages[chatId].push(message);
                     if (currentChatId === chatId) renderChatMessages(chatId);
                     if (appSettings.notifications && window.OneSignalDeferred && chatId !== currentChatId) {
+                        const chatName = CHATS.find(c => c.id === chatId)?.name || `Чат ${chatId}`;
                         OneSignalDeferred.push(async function(OneSignal) {
                             await OneSignal.sendNotification({
-                                title: `Новое сообщение в ${CHATS.find(c => c.id === chatId)?.name}`,
+                                title: `Новое сообщение в ${chatName}`,
                                 message: `${message.full_nick}: ${message.text.substring(0, 100)}`,
                                 url: window.location.href
                             });
@@ -1426,6 +1421,9 @@
     }
 
     window.onload = async () => {
+        // Применяем тему и акцент для экрана логина
+        applyAccent(appSettings.accent);
+        applyTheme();
         const logged = await verifyToken();
         if (!logged) {
             document.getElementById('loginScreen').style.display = 'flex';
