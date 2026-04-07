@@ -355,7 +355,14 @@ app.post('/remove-room-member', async (req, res) => {
     return res.json({ success: false });
   }
   await pool.query('DELETE FROM room_members WHERE room_id = $1 AND full_nick = $2', [roomId, full_nick]);
-  io.emit('room_member_removed', { roomId, full_nick });
+  // Проверить, остались ли участники
+  const remaining = await pool.query('SELECT COUNT(*) FROM room_members WHERE room_id = $1', [roomId]);
+  if (parseInt(remaining.rows[0].count) === 0) {
+    await pool.query('DELETE FROM rooms WHERE id = $1', [roomId]);
+    io.emit('room_deleted', roomId);
+  } else {
+    io.emit('room_member_removed', { roomId, full_nick });
+  }
   res.json({ success: true });
 });
 
@@ -418,22 +425,54 @@ app.post('/edit-room-message', async (req, res) => {
   }
 });
 
-// ========== ОНЛАЙН ==========
+// ========== ОНЛАЙН, ПЕЧАТЬ ==========
 const onlineUsers = new Set();
 io.on('connection', (socket) => {
   let currentFullNick = null;
+
+  socket.on('join public', () => {
+    socket.join('public');
+  });
+
+  socket.on('join typing room', (roomId) => {
+    socket.join(`typing_${roomId}`);
+  });
+
+  socket.on('leave typing room', (roomId) => {
+    socket.leave(`typing_${roomId}`);
+  });
+
+  socket.on('typing', ({ roomId, full_nick }) => {
+    const room = roomId === 'public' ? 'public' : `typing_room_${roomId}`;
+    socket.to(roomId === 'public' ? 'public' : `room_${roomId}`).emit('user typing', { roomId, full_nick });
+  });
+
+  socket.on('stop typing', ({ roomId, full_nick }) => {
+    const room = roomId === 'public' ? 'public' : `room_${roomId}`;
+    socket.to(room).emit('user stop typing', { roomId, full_nick });
+  });
+
   socket.on('user online', (full_nick) => {
     currentFullNick = full_nick;
     onlineUsers.add(full_nick);
     io.emit('online count', onlineUsers.size);
   });
+
   socket.on('disconnect', () => {
     if (currentFullNick) {
       onlineUsers.delete(currentFullNick);
       io.emit('online count', onlineUsers.size);
     }
   });
-  
+
+  socket.on('join room', (roomId) => {
+    socket.join(`room_${roomId}`);
+  });
+
+  socket.on('leave room', (roomId) => {
+    socket.leave(`room_${roomId}`);
+  });
+
   socket.on('new message', async (data) => {
     const { full_nick, text, reply_to_id } = data;
     if (!full_nick || !text || text.trim() === '') return;
@@ -458,15 +497,9 @@ io.on('connection', (socket) => {
         newMsg.reply_text = replyMsg.rows[0].text;
       }
     }
-    io.emit('message received', newMsg);
+    io.to('public').emit('message received', newMsg);
   });
-  
-  socket.on('join room', (roomId) => {
-    socket.join(`room_${roomId}`);
-  });
-  socket.on('leave room', (roomId) => {
-    socket.leave(`room_${roomId}`);
-  });
+
   socket.on('new room message', async (data) => {
     const { roomId, full_nick, text, reply_to_id } = data;
     if (!roomId || !full_nick || !text || text.trim() === '') return;
