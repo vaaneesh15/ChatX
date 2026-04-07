@@ -20,6 +20,7 @@ const pool = new Pool({
 });
 
 async function initDB() {
+  // Таблица пользователей
   await pool.query(`
     CREATE TABLE IF NOT EXISTS users (
       id SERIAL PRIMARY KEY,
@@ -31,9 +32,11 @@ async function initDB() {
       created_at TIMESTAMP DEFAULT NOW()
     );
   `);
+  // Таблица сообщений трёх общих чатов
   await pool.query(`
-    CREATE TABLE IF NOT EXISTS messages (
+    CREATE TABLE IF NOT EXISTS global_chat_messages (
       id SERIAL PRIMARY KEY,
+      chat_id INTEGER NOT NULL,
       full_nick VARCHAR(55) NOT NULL,
       text TEXT NOT NULL,
       reply_to_id INTEGER DEFAULT NULL,
@@ -41,17 +44,18 @@ async function initDB() {
       created_at TIMESTAMP DEFAULT NOW()
     );
   `);
+  // Таблица реакций
   await pool.query(`
-    CREATE TABLE IF NOT EXISTS message_reactions (
+    CREATE TABLE IF NOT EXISTS global_chat_reactions (
       id SERIAL PRIMARY KEY,
-      message_id INTEGER NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+      message_id INTEGER NOT NULL REFERENCES global_chat_messages(id) ON DELETE CASCADE,
       full_nick VARCHAR(55) NOT NULL,
       reaction VARCHAR(10) NOT NULL,
       created_at TIMESTAMP DEFAULT NOW(),
       UNIQUE(message_id, full_nick, reaction)
     );
   `);
-  console.log('✅ База данных готова');
+  console.log('✅ База данных готова (три общих чата)');
 }
 initDB();
 
@@ -121,8 +125,8 @@ app.post('/change-nick', async (req, res) => {
     return res.json({ success: false, error: 'Ник уже существует' });
   }
   await pool.query('UPDATE users SET nick = $1, full_nick = $2 WHERE token = $3', [newNick, newFullNick, token]);
-  await pool.query('UPDATE messages SET full_nick = $1 WHERE full_nick = $2', [newFullNick, oldFullNick]);
-  await pool.query('UPDATE message_reactions SET full_nick = $1 WHERE full_nick = $2', [newFullNick, oldFullNick]);
+  await pool.query('UPDATE global_chat_messages SET full_nick = $1 WHERE full_nick = $2', [newFullNick, oldFullNick]);
+  await pool.query('UPDATE global_chat_reactions SET full_nick = $1 WHERE full_nick = $2', [newFullNick, oldFullNick]);
   io.emit('nick changed', { oldFullNick, newFullNick });
   res.json({ success: true, newFullNick });
 });
@@ -141,56 +145,60 @@ app.post('/change-pin', async (req, res) => {
   res.json({ success: true });
 });
 
-app.get('/messages', async (req, res) => {
-  const { full_nick } = req.query;
+// Получение сообщений чата
+app.get('/chat-messages', async (req, res) => {
+  const { chatId, full_nick } = req.query;
+  if (!chatId || !full_nick) return res.status(400).json([]);
   const result = await pool.query(`
     SELECT m.id, m.full_nick, m.text, m.reply_to_id, m.edited, m.created_at,
            COALESCE(r.reactions, '[]'::json) as reactions,
            rep.full_nick as reply_nick, rep.text as reply_text,
-           (SELECT array_agg(reaction) FROM message_reactions WHERE message_id = m.id AND full_nick = $1) as user_reactions
-    FROM messages m
+           (SELECT array_agg(reaction) FROM global_chat_reactions WHERE message_id = m.id AND full_nick = $2) as user_reactions
+    FROM global_chat_messages m
     LEFT JOIN LATERAL (
       SELECT json_agg(json_build_object('reaction', reaction, 'count', cnt)) as reactions
       FROM (
         SELECT reaction, COUNT(*) as cnt
-        FROM message_reactions
+        FROM global_chat_reactions
         WHERE message_id = m.id
         GROUP BY reaction
       ) sub
     ) r ON true
-    LEFT JOIN messages rep ON m.reply_to_id = rep.id
+    LEFT JOIN global_chat_messages rep ON m.reply_to_id = rep.id
+    WHERE m.chat_id = $1
     ORDER BY m.created_at ASC
-  `, [full_nick]);
+  `, [chatId, full_nick]);
   res.json(result.rows);
 });
 
-app.post('/add-reaction', async (req, res) => {
-  const { messageId, full_nick, reaction } = req.body;
+// Добавление реакции в чате
+app.post('/add-chat-reaction', async (req, res) => {
+  const { messageId, full_nick, reaction, chatId } = req.body;
   if (!messageId || !full_nick || !reaction) return res.status(400).json({ success: false });
   try {
     await pool.query(
-      `INSERT INTO message_reactions (message_id, full_nick, reaction) VALUES ($1, $2, $3)`,
+      `INSERT INTO global_chat_reactions (message_id, full_nick, reaction) VALUES ($1, $2, $3)`,
       [messageId, full_nick, reaction]
     );
     const reactionsRes = await pool.query(
-      `SELECT reaction, COUNT(*) as count FROM message_reactions WHERE message_id = $1 GROUP BY reaction`,
+      `SELECT reaction, COUNT(*) as count FROM global_chat_reactions WHERE message_id = $1 GROUP BY reaction`,
       [messageId]
     );
     const reactions = reactionsRes.rows;
-    io.emit('reaction updated', { messageId, reactions });
+    io.to(`chat_${chatId}`).emit('chat reaction updated', { chatId, messageId, reactions });
     res.json({ success: true, reactions });
   } catch (err) {
     if (err.code === '23505') {
       await pool.query(
-        `DELETE FROM message_reactions WHERE message_id = $1 AND full_nick = $2 AND reaction = $3`,
+        `DELETE FROM global_chat_reactions WHERE message_id = $1 AND full_nick = $2 AND reaction = $3`,
         [messageId, full_nick, reaction]
       );
       const reactionsRes = await pool.query(
-        `SELECT reaction, COUNT(*) as count FROM message_reactions WHERE message_id = $1 GROUP BY reaction`,
+        `SELECT reaction, COUNT(*) as count FROM global_chat_reactions WHERE message_id = $1 GROUP BY reaction`,
         [messageId]
       );
       const reactions = reactionsRes.rows;
-      io.emit('reaction updated', { messageId, reactions });
+      io.to(`chat_${chatId}`).emit('chat reaction updated', { chatId, messageId, reactions });
       res.json({ success: true, reactions });
     } else {
       res.status(500).json({ success: false });
@@ -198,57 +206,44 @@ app.post('/add-reaction', async (req, res) => {
   }
 });
 
-app.post('/delete-message', async (req, res) => {
-  const { full_nick, messageId } = req.body;
-  if (!full_nick || !messageId) return res.status(400).json({ success: false });
-  const msg = await pool.query('SELECT full_nick FROM messages WHERE id = $1', [messageId]);
+// Удаление сообщения в чате
+app.post('/delete-chat-message', async (req, res) => {
+  const { full_nick, messageId, chatId } = req.body;
+  if (!full_nick || !messageId || !chatId) return res.status(400).json({ success: false });
+  const msg = await pool.query('SELECT full_nick FROM global_chat_messages WHERE id = $1', [messageId]);
   if (msg.rows.length === 0) return res.json({ success: false });
   if (msg.rows[0].full_nick !== full_nick) return res.json({ success: false });
-  const result = await pool.query('DELETE FROM messages WHERE id = $1 RETURNING id', [messageId]);
+  const result = await pool.query('DELETE FROM global_chat_messages WHERE id = $1 RETURNING id', [messageId]);
   if (result.rowCount > 0) {
-    io.emit('message deleted', messageId);
+    io.to(`chat_${chatId}`).emit('chat message deleted', { chatId, messageId });
     res.json({ success: true });
   } else {
     res.json({ success: false });
   }
 });
 
-app.post('/edit-message', async (req, res) => {
-  const { messageId, full_nick, newText } = req.body;
+// Редактирование сообщения в чате
+app.post('/edit-chat-message', async (req, res) => {
+  const { messageId, full_nick, newText, chatId } = req.body;
   if (!messageId || !full_nick || !newText || newText.trim() === '') {
     return res.status(400).json({ success: false });
   }
   const result = await pool.query(
-    'UPDATE messages SET text = $1, edited = TRUE WHERE id = $2 AND full_nick = $3 RETURNING id',
+    'UPDATE global_chat_messages SET text = $1, edited = TRUE WHERE id = $2 AND full_nick = $3 RETURNING id',
     [newText.trim(), messageId, full_nick]
   );
   if (result.rowCount > 0) {
-    io.emit('message edited', { messageId, newText: newText.trim() });
+    io.to(`chat_${chatId}`).emit('chat message edited', { chatId, messageId, newText: newText.trim() });
     res.json({ success: true });
   } else {
     res.json({ success: false });
   }
 });
 
+// ========== SOCKET.IO ==========
 const onlineUsers = new Set();
 io.on('connection', (socket) => {
   let currentFullNick = null;
-
-  socket.on('join public', () => {
-    socket.join('public');
-  });
-
-  socket.on('typing', ({ roomId, full_nick }) => {
-    if (roomId === 'public') {
-      socket.to('public').emit('user typing', { roomId: 'public', full_nick });
-    }
-  });
-
-  socket.on('stop typing', ({ roomId }) => {
-    if (roomId === 'public') {
-      socket.to('public').emit('user stop typing', { roomId: 'public' });
-    }
-  });
 
   socket.on('user online', (full_nick) => {
     currentFullNick = full_nick;
@@ -263,12 +258,35 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('new message', async (data) => {
-    const { full_nick, text, reply_to_id } = data;
-    if (!full_nick || !text || text.trim() === '') return;
+  // Присоединение к чату
+  socket.on('join chat', (chatId) => {
+    socket.join(`chat_${chatId}`);
+  });
+  socket.on('leave chat', (chatId) => {
+    socket.leave(`chat_${chatId}`);
+  });
+
+  // Печать в чате
+  socket.on('join typing chat', (chatId) => {
+    socket.join(`typing_chat_${chatId}`);
+  });
+  socket.on('leave typing chat', (chatId) => {
+    socket.leave(`typing_chat_${chatId}`);
+  });
+  socket.on('chat typing', ({ chatId, full_nick }) => {
+    socket.to(`chat_${chatId}`).emit('chat typing', { chatId, full_nick });
+  });
+  socket.on('chat stop typing', ({ chatId, full_nick }) => {
+    socket.to(`chat_${chatId}`).emit('chat stop typing', { chatId });
+  });
+
+  // Новое сообщение в чате
+  socket.on('new chat message', async (data) => {
+    const { chatId, full_nick, text, reply_to_id } = data;
+    if (!chatId || !full_nick || !text || text.trim() === '') return;
     const result = await pool.query(
-      'INSERT INTO messages (full_nick, text, reply_to_id) VALUES ($1, $2, $3) RETURNING id, created_at',
-      [full_nick, text.trim(), reply_to_id || null]
+      'INSERT INTO global_chat_messages (chat_id, full_nick, text, reply_to_id) VALUES ($1, $2, $3, $4) RETURNING id, created_at',
+      [chatId, full_nick, text.trim(), reply_to_id || null]
     );
     const newMsg = {
       id: result.rows[0].id,
@@ -281,13 +299,13 @@ io.on('connection', (socket) => {
       user_reactions: []
     };
     if (reply_to_id) {
-      const replyMsg = await pool.query('SELECT full_nick, text FROM messages WHERE id = $1', [reply_to_id]);
+      const replyMsg = await pool.query('SELECT full_nick, text FROM global_chat_messages WHERE id = $1', [reply_to_id]);
       if (replyMsg.rows.length) {
         newMsg.reply_nick = replyMsg.rows[0].full_nick;
         newMsg.reply_text = replyMsg.rows[0].text;
       }
     }
-    io.to('public').emit('message received', newMsg);
+    io.to(`chat_${chatId}`).emit('chat message received', { chatId, message: newMsg });
   });
 });
 
