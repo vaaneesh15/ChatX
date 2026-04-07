@@ -75,7 +75,6 @@
             overflow: hidden;
         }
 
-        /* Верхняя панель с вкладками, цвет фона которой тянется на статус-бар */
         .top-tab-bar {
             background: var(--input-bg);
             padding-top: env(safe-area-inset-top, 0);
@@ -316,7 +315,6 @@
             font-size: 1.2rem;
         }
 
-        /* Контекстное меню */
         .context-menu-modal .modal-content {
             max-width: 260px;
         }
@@ -439,7 +437,6 @@
     let pendingDeleteMessageId = null;
     let currentReactionMessage = null;
     let replyingTo = null;
-    let contextMessageData = null;
 
     function escapeHtml(str) { return str.replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'})[m]); }
     function splitFullNick(full) { const h=full.lastIndexOf('#'); if(h===-1) return {nick:full,tag:''}; return {nick:full.slice(0,h),tag:full.slice(h)}; }
