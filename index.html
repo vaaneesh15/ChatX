@@ -23,16 +23,73 @@
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             position: fixed;
             width: 100%;
+            transition: background-color 0.2s, color 0.2s;
         }
-        :root {
+        /* Тёмная тема (по умолчанию обычная тёмная) */
+        body.theme-dark-regular {
             --bg-page: #121212;
             --text-primary: #ffffff;
             --text-secondary: #8e8e93;
             --border-light: rgba(84,84,88,0.4);
-            --accent-color: #0a84ff;
             --input-bg: #1c1c1e;
-            --accent-rgb: 10, 132, 255;
         }
+        body.theme-dark-black {
+            --bg-page: #000000;
+            --text-primary: #ffffff;
+            --text-secondary: #8e8e93;
+            --border-light: rgba(84,84,88,0.4);
+            --input-bg: #0c0c0e;
+        }
+        body.theme-dark-tint {
+            --bg-page: #121212;
+            --text-primary: #ffffff;
+            --text-secondary: #8e8e93;
+            --border-light: rgba(var(--accent-rgb), 0.3);
+            --input-bg: #1c1c1e;
+        }
+        /* Светлая тема */
+        body.theme-light-regular {
+            --bg-page: #e5e5ea;
+            --text-primary: #000000;
+            --text-secondary: #3a3a3c;
+            --border-light: rgba(60,60,67,0.3);
+            --input-bg: #ffffff;
+        }
+        body.theme-light-white {
+            --bg-page: #ffffff;
+            --text-primary: #000000;
+            --text-secondary: #3a3a3c;
+            --border-light: rgba(60,60,67,0.2);
+            --input-bg: #f2f2f7;
+        }
+        body.theme-light-tint {
+            --bg-page: #e5e5ea;
+            --text-primary: #000000;
+            --text-secondary: #3a3a3c;
+            --border-light: rgba(var(--accent-rgb), 0.3);
+            --input-bg: #ffffff;
+        }
+        /* Адаптивная (системная) — без дополнительного класса, управляется через медиа */
+        @media (prefers-color-scheme: dark) {
+            body.theme-system {
+                --bg-page: #121212;
+                --text-primary: #ffffff;
+                --text-secondary: #8e8e93;
+                --border-light: rgba(84,84,88,0.4);
+                --input-bg: #1c1c1e;
+            }
+        }
+        @media (prefers-color-scheme: light) {
+            body.theme-system {
+                --bg-page: #e5e5ea;
+                --text-primary: #000000;
+                --text-secondary: #3a3a3c;
+                --border-light: rgba(60,60,67,0.3);
+                --input-bg: #ffffff;
+            }
+        }
+
+        /* Акценты */
         body.accent-blue { --accent-color: #0a84ff; --accent-rgb: 10, 132, 255; }
         body.accent-purple { --accent-color: #8b5cf6; --accent-rgb: 139, 92, 246; }
         body.accent-pink { --accent-color: #ec4899; --accent-rgb: 236, 72, 153; }
@@ -42,7 +99,15 @@
         body.accent-yellow { --accent-color: #eab308; --accent-rgb: 234, 179, 8; }
         body.accent-mint { --accent-color: #10b981; --accent-rgb: 16, 185, 129; }
 
-        button:active { opacity: 0.6; transition: opacity 0.05s; }
+        /* Затемнение при нажатии на iOS и везде */
+        button, .clickable {
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+        }
+        button:active, .clickable:active {
+            opacity: 0.6;
+            transition: opacity 0.05s;
+        }
 
         .login-screen {
             position: fixed; top:0; left:0; width:100%; height:100%;
@@ -55,13 +120,13 @@
         }
         .login-card h2 { margin-bottom:1.5rem; text-align:center; font-weight:590; }
         .login-card input {
-            width:100%; padding:0.8rem; margin-bottom:1rem; background:#2c2c2e;
-            border:1px solid var(--border-light); border-radius:1rem; color:white; font-size:1rem; outline:none;
+            width:100%; padding:0.8rem; margin-bottom:1rem; background: var(--bg-page);
+            border:1px solid var(--border-light); border-radius:1rem; color:var(--text-primary); font-size:1rem; outline:none;
         }
         .login-card input:focus { border-color:var(--accent-color); }
         .login-card button {
             width:100%; padding:0.8rem; background:var(--accent-color); border:none;
-            border-radius:1rem; color:white; font-weight:600; cursor:pointer;
+            border-radius:1rem; color:white; font-weight:600;
         }
         .login-card .error { color:#ff6b6b; font-size:0.8rem; margin-top:0.5rem; text-align:center; }
 
@@ -94,7 +159,6 @@
             font-size: 1rem;
             font-weight: 500;
             color: var(--text-secondary);
-            cursor: pointer;
             border-radius: 2rem;
             transition: all 0.2s;
         }
@@ -151,11 +215,11 @@
         .nick-tag { color:#6c6c70; font-weight:400; font-size:0.7rem; }
         .message-actions-btn {
             position: absolute; right: 0; top: 0;
-            background: none; border: none; cursor: pointer; color: var(--text-secondary);
+            background: none; border: none;
             display: inline-flex; align-items: center; justify-content: center;
             width: 28px; height: 28px; border-radius: 14px;
+            color: var(--text-secondary);
         }
-        .message-actions-btn:active { opacity: 0.6; }
         .message-actions-btn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; }
         .reply-context {
             margin-bottom: 6px;
@@ -239,7 +303,7 @@
             align-items: center;
             gap: 4px;
             cursor: pointer;
-            border: 0.5px solid rgba(255,255,255,0.1);
+            border: 0.5px solid var(--border-light);
         }
         .reaction-badge .reaction-count {
             color: var(--text-secondary);
@@ -255,7 +319,7 @@
         .message-divider {
             margin-top: 8px;
             height: 1px;
-            background-color: rgba(84,84,88,0.4);
+            background-color: var(--border-light);
             width: 100%;
         }
 
@@ -271,201 +335,23 @@
             display: none;
         }
 
-        .rooms-list {
-            padding: 0.5rem;
-            display: flex;
-            flex-direction: column;
-            gap: 0;
-            flex: 1;
-        }
-        .room-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            width: 100%;
-            padding: 0.75rem 0.5rem;
-            border-bottom: 1px solid var(--border-light);
-        }
-        .room-info {
-            display: flex;
-            flex-direction: column;
-            flex: 1;
-            gap: 4px;
-        }
-        .room-name {
-            font-weight: 500;
-            font-size: 1rem;
-        }
-        .room-buttons {
-            display: flex;
-            gap: 8px;
-        }
-        .join-room-btn, .leave-room-btn {
-            background: var(--accent-color);
-            border: none;
-            padding: 0.4rem 1rem;
-            border-radius: 2rem;
-            color: white;
-            cursor: pointer;
-            flex-shrink: 0;
-        }
-        .leave-room-btn {
-            background: #2c2c2e;
-            color: #ff6b6b;
-        }
-        .create-room-fab {
-            position: fixed;
-            bottom: 2rem;
-            right: 1rem;
-            background: var(--accent-color);
-            width: 3rem;
-            height: 3rem;
-            border-radius: 3rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-            z-index: 100;
-        }
-        .create-room-fab svg {
-            width: 1.5rem;
-            height: 1.5rem;
-            stroke: white;
-            stroke-width: 2;
-        }
-
-        .room-header {
-            background: var(--input-bg);
-            border-bottom: 1px solid var(--border-light);
-            padding: 0.7rem 1rem;
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            flex-shrink: 0;
-        }
-        .back-btn {
-            background: #2c2c2e;
-            border: none;
-            border-radius: 1rem;
-            font-size: 1.2rem;
-            cursor: pointer;
-            color: white;
-            width: 2.2rem;
-            height: 2.2rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .modal {
-            display: none; position: fixed; top:0; left:0; width:100%; height:100%;
-            background-color:rgba(0,0,0,0.7); backdrop-filter:blur(12px); z-index:1000;
-            justify-content:center; align-items:center;
-        }
-        .modal-content {
-            background:#1c1c1e; border-radius:2rem; padding:1.5rem; width:90%; max-width:340px;
-            border:0.5px solid var(--border-light); box-shadow:0 8px 20px rgba(0,0,0,0.3);
-        }
-        .modal-content h3 { margin-bottom:1rem; font-size:1.3rem; font-weight:590; color:white; }
-        .modal-setting { margin-bottom:1.2rem; }
-        .modal-setting label { display:block; margin-bottom:0.4rem; font-weight:500; font-size:0.9rem; color:#8e8e93; }
-        .modal-setting input {
-            width:100%; padding:0.6rem 1rem; background:#2c2c2e; border:0.5px solid var(--border-light);
-            border-radius:1rem; font-size:1rem; color:white; outline:none;
-        }
-        .modal-buttons { display:flex; gap:10px; margin-top:1rem; }
-        .modal-buttons button {
-            flex:1; padding:0.7rem; border-radius:1rem; font-weight:590; cursor:pointer; border:none;
-            font-size:0.9rem; background: #2c2c2e; color: white;
-        }
-        .modal-buttons button:last-child { background: #2c2c2e; color: white; } /* теперь все кнопки одинаковые */
-
-        .context-menu-buttons {
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-            margin-top: 1rem;
-        }
-        .context-menu-buttons button {
-            background: #2c2c2e;
-            border: none;
-            padding: 0.75rem 1rem;
-            border-radius: 1rem;
-            font-size: 1rem;
-            color: white;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            cursor: pointer;
-            transition: background 0.1s;
-        }
-        .context-menu-buttons button:active {
-            background: #3a3a3c;
-        }
-        .context-menu-buttons svg {
-            width: 1.2rem;
-            height: 1.2rem;
-            stroke: currentColor;
-            stroke-width: 1.5;
-            fill: none;
-        }
-        .context-message-nick {
-            font-size: 0.9rem;
-            margin-bottom: 0.5rem;
-        }
-        .context-message-preview {
-            font-size: 0.85rem;
-            color: var(--text-secondary);
-            padding: 0.5rem 0;
-            border-top: 1px solid var(--border-light);
-            border-bottom: 1px solid var(--border-light);
-            margin-bottom: 0.5rem;
-            word-break: break-word;
-        }
-
-        .reactions-picker {
-            display: grid;
-            grid-template-columns: repeat(5, 1fr);
-            gap: 0.5rem;
-            justify-items: center;
-            margin-bottom: 1rem;
-        }
-        .reactions-picker button {
-            background: none;
-            border: none;
-            font-size: 1.5rem;
-            cursor: pointer;
-            padding: 0.3rem;
-            border-radius: 1rem;
-        }
-
         .settings-container { padding: 1.5rem; display: flex; flex-direction: column; gap: 1.8rem; }
         .setting-row { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
         .setting-label { font-weight: 500; font-size: 1rem; color: var(--text-primary); }
         .nick-readonly {
-            background: #2c2c2e;
-            border: none;
+            background: var(--input-bg);
+            border: 1px solid var(--border-light);
             border-radius: 1rem;
             padding: 0.6rem 1rem;
             color: var(--text-primary);
             font-size: 1rem;
         }
-        .setting-row button {
-            background: #2c2c2e;
-            border: none;
-            border-radius: 1rem;
-            padding: 0.6rem 1rem;
-            color: white;
-            cursor: pointer;
-            font-size: 0.9rem;
-        }
-        .accent-select {
-            background-color: #2c2c2e;
-            border: none;
+        .setting-row select {
+            background-color: var(--input-bg);
+            border: 1px solid var(--border-light);
             border-radius: 1rem;
             padding: 0.6rem 2rem 0.6rem 1rem;
-            color: white;
+            color: var(--text-primary);
             font-size: 0.9rem;
             appearance: none;
             background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
@@ -473,6 +359,15 @@
             background-position: right 1rem center;
             background-size: 1.2rem;
             cursor: pointer;
+        }
+        .setting-row button {
+            background: var(--input-bg);
+            border: 1px solid var(--border-light);
+            border-radius: 1rem;
+            padding: 0.6rem 1rem;
+            color: var(--text-primary);
+            cursor: pointer;
+            font-size: 0.9rem;
         }
         .switch {
             position: relative;
@@ -516,7 +411,7 @@
 
         .input-wrapper {
             background: var(--input-bg);
-            border-top: 1px solid rgba(84,84,88,0.6);
+            border-top: 1px solid var(--border-light);
             padding-bottom: env(safe-area-inset-bottom,0);
         }
         .input-row {
@@ -534,7 +429,7 @@
             background:var(--accent-color); border:none; width:2.5rem; height:2.5rem; border-radius:2rem;
             color:white; font-size:1.3rem; cursor:pointer; display:flex; align-items:center; justify-content:center;
         }
-        /* Индикаторы ответа и редактирования — как ответ в сообщении */
+        /* Индикаторы ответа и редактирования */
         .reply-indicator, .edit-indicator {
             margin: 0.5rem 1rem 0;
             background: var(--input-bg);
@@ -547,7 +442,6 @@
             padding: 0.5rem 0.8rem;
             position: relative;
         }
-        /* Тонкая полоска-разделитель сверху (как между сообщениями) */
         .reply-indicator::before, .edit-indicator::before {
             content: '';
             position: absolute;
@@ -573,17 +467,99 @@
             text-overflow: ellipsis;
         }
         .cancel-reply, .cancel-edit {
-            background: #2c2c2e;
+            background: var(--bg-page);
             border: none;
             border-radius: 1rem;
             width: 2rem;
             height: 2rem;
-            color: white;
+            color: var(--text-primary);
             cursor: pointer;
             font-size: 1.2rem;
             display: flex;
             align-items: center;
             justify-content: center;
+        }
+
+        .modal {
+            display: none; position: fixed; top:0; left:0; width:100%; height:100%;
+            background-color:rgba(0,0,0,0.7); backdrop-filter:blur(12px); z-index:1000;
+            justify-content:center; align-items:center;
+        }
+        .modal-content {
+            background:var(--input-bg); border-radius:2rem; padding:1.5rem; width:90%; max-width:340px;
+            border:0.5px solid var(--border-light); box-shadow:0 8px 20px rgba(0,0,0,0.3);
+        }
+        .modal-content h3 { margin-bottom:1rem; font-size:1.3rem; font-weight:590; color:var(--text-primary); }
+        .modal-setting { margin-bottom:1.2rem; }
+        .modal-setting label { display:block; margin-bottom:0.4rem; font-weight:500; font-size:0.9rem; color:var(--text-secondary); }
+        .modal-setting input {
+            width:100%; padding:0.6rem 1rem; background:var(--bg-page); border:0.5px solid var(--border-light);
+            border-radius:1rem; font-size:1rem; color:var(--text-primary); outline:none;
+        }
+        .modal-buttons { display:flex; gap:10px; margin-top:1rem; }
+        .modal-buttons button {
+            flex:1; padding:0.7rem; border-radius:1rem; font-weight:590; cursor:pointer; border:none;
+            font-size:0.9rem; background: var(--bg-page); color: var(--text-primary);
+        }
+        .modal-buttons button:last-child { background: var(--accent-color); color:white; }
+
+        .context-menu-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+        .context-menu-buttons button {
+            background: var(--bg-page);
+            border: 1px solid var(--border-light);
+            padding: 0.75rem 1rem;
+            border-radius: 1rem;
+            font-size: 1rem;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            transition: background 0.1s;
+        }
+        .context-menu-buttons button:active {
+            background: rgba(128,128,128,0.2);
+        }
+        .context-menu-buttons svg {
+            width: 1.2rem;
+            height: 1.2rem;
+            stroke: currentColor;
+            stroke-width: 1.5;
+            fill: none;
+        }
+        .context-message-nick {
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+        }
+        .context-message-preview {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            padding: 0.5rem 0;
+            border-top: 1px solid var(--border-light);
+            border-bottom: 1px solid var(--border-light);
+            margin-bottom: 0.5rem;
+            word-break: break-word;
+        }
+
+        .reactions-picker {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 0.5rem;
+            justify-items: center;
+            margin-bottom: 1rem;
+        }
+        .reactions-picker button {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0.3rem;
+            border-radius: 1rem;
         }
     </style>
 </head>
@@ -601,8 +577,7 @@
 
 <div id="appContainer" class="app-container" style="display: none;">
     <div class="top-tab-bar">
-        <button class="top-tab active" data-tab="public">Общий</button>
-        <button class="top-tab" data-tab="private">Комнаты</button>
+        <button class="top-tab active" data-tab="public">Чат</button>
         <button class="top-tab" data-tab="settings">Настройки</button>
     </div>
 
@@ -617,16 +592,6 @@
         </div>
     </div>
 
-    <div id="privateTab" class="tab-content">
-        <div id="roomsList" class="rooms-list">Загрузка...</div>
-        <div class="create-room-fab" id="createRoomFab">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <line x1="12" y1="5" x2="12" y2="19"></line>
-                <line x1="5" y1="12" x2="19" y2="12"></line>
-            </svg>
-        </div>
-    </div>
-
     <div id="settingsTab" class="tab-content">
         <div class="settings-container">
             <div class="setting-row">
@@ -637,6 +602,22 @@
             <div class="setting-row">
                 <span class="setting-label">Сменить PIN</span>
                 <button id="changePinBtn">Сменить</button>
+            </div>
+            <div class="setting-row">
+                <span class="setting-label">Светлая тема</span>
+                <select id="lightThemeSelect">
+                    <option value="regular">Обычная</option>
+                    <option value="white">Белая</option>
+                    <option value="tint">Оттенок</option>
+                </select>
+            </div>
+            <div class="setting-row">
+                <span class="setting-label">Тёмная тема</span>
+                <select id="darkThemeSelect">
+                    <option value="regular">Обычная</option>
+                    <option value="black">Чёрная</option>
+                    <option value="tint">Оттенок</option>
+                </select>
             </div>
             <div class="setting-row">
                 <span class="setting-label">Оттенок</span>
@@ -675,29 +656,27 @@
 <div id="contextMenuModal" class="modal context-menu-modal"><div class="modal-content"><div id="contextMessageNick" class="context-message-nick"></div><div id="contextMessagePreview" class="context-message-preview"></div><div class="context-menu-buttons" id="contextMenuButtons"></div></div></div>
 <div id="confirmModal" class="modal"><div class="modal-content"><h3>Подтверждение</h3><p id="confirmMessage" style="margin-bottom:1rem;">Вы уверены?</p><div class="modal-buttons"><button id="confirmCancelBtn">Отмена</button><button id="confirmOkBtn">Удалить</button></div></div></div>
 <div id="reactionPickerModal" class="modal"><div class="modal-content"><h3>Выберите реакцию</h3><div class="reactions-picker" id="reactionsPicker"></div><div class="modal-buttons"><button id="closeReactionPickerBtn">Закрыть</button></div></div></div>
-<div id="joinRoomModal" class="modal"><div class="modal-content"><h3>Подключиться к комнате</h3><div class="modal-setting"><label>Название комнаты</label><input type="text" id="roomNameInput" placeholder="Название"></div><div class="modal-setting"><label>Пароль</label><input type="password" id="roomPasswordInput" placeholder="Пароль"></div><div class="modal-buttons"><button id="cancelJoinRoomBtn">Отмена</button><button id="confirmJoinRoomBtn">Подключиться</button></div></div></div>
-<div id="leaveRoomConfirmModal" class="modal"><div class="modal-content"><h3>Подтверждение</h3><p>Вы уверены, что хотите отключиться от комнаты?</p><div class="modal-buttons"><button id="cancelLeaveBtn">Нет</button><button id="confirmLeaveBtn">Да</button></div></div></div>
 
 <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
 <script>
     let socket = null;
     let currentUser = { full_nick: "" };
     let authToken = localStorage.getItem('simply_token');
-    let appSettings = JSON.parse(localStorage.getItem('simply_settings')) || { accent: 'blue', showDate: true, showReactions: true };
+    let appSettings = JSON.parse(localStorage.getItem('simply_settings')) || { 
+        accent: 'blue', 
+        showDate: true, 
+        showReactions: true,
+        themeMode: 'system', // system, light, dark
+        lightThemeVariant: 'regular',
+        darkThemeVariant: 'regular'
+    };
     
     let publicMessages = [];
-    let editingMessage = null;
+    let editingMessage = null;  // { id, text }
     let pendingDeleteMessageId = null;
     let currentReactionMessage = null;
-    let currentReactionRoomId = null;
-    let isReactionForRoom = false;
+    let replyingTo = null;      // { messageId, full_nick, text }
     let contextMessageData = null;
-    let replyingTo = null;
-    let pendingLeaveRoomId = null;
-
-    let rooms = [];
-    let currentRoom = null;
-    let roomMessages = {};
 
     let typingTimeouts = {};
 
@@ -720,6 +699,31 @@
             return `${hours}:${minutes}`;
         }
     }
+
+    // Применение темы
+    function applyTheme() {
+        const mode = appSettings.themeMode;
+        // Убираем все классы тем
+        document.body.classList.remove('theme-system', 'theme-light-regular', 'theme-light-white', 'theme-light-tint', 'theme-dark-regular', 'theme-dark-black', 'theme-dark-tint');
+        if (mode === 'system') {
+            document.body.classList.add('theme-system');
+        } else if (mode === 'light') {
+            const variant = appSettings.lightThemeVariant || 'regular';
+            document.body.classList.add(`theme-light-${variant}`);
+        } else if (mode === 'dark') {
+            const variant = appSettings.darkThemeVariant || 'regular';
+            document.body.classList.add(`theme-dark-${variant}`);
+        }
+        // Сохраняем в localStorage
+        localStorage.setItem('simply_settings', JSON.stringify(appSettings));
+        // Обновляем цвет статус-бара
+        const color = getComputedStyle(document.body).getPropertyValue('--accent-color').trim();
+        if (color) {
+            const meta = document.getElementById('themeColorMeta');
+            if (meta) meta.setAttribute('content', color);
+        }
+    }
+
     function applyAccent(accent) {
         const classes = ['accent-blue','accent-purple','accent-pink','accent-red','accent-orange','accent-beige','accent-yellow','accent-mint'];
         document.body.classList.remove(...classes);
@@ -779,7 +783,7 @@
                 <div class="message-text">${linkify(escapeHtml(msg.text))}</div>
                 <div class="message-footer">
                     <div class="footer-left">
-                        ${showReactions ? `<button class="reaction-btn" data-message="${msg.id}" data-room="false"><svg viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" fill="#ff375f"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></button>` : ''}
+                        ${showReactions ? `<button class="reaction-btn" data-message="${msg.id}"><svg viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" fill="#ff375f"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></button>` : ''}
                         ${reactionsHtml}
                     </div>
                     <div class="footer-right">
@@ -795,7 +799,7 @@
             actionsBtn.innerHTML = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>';
             actionsBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                showContextMenu(msg.id, msg.full_nick, msg.text, isOwn, false, null);
+                showContextMenu(msg.id, msg.full_nick, msg.text, isOwn);
             });
             msgDiv.appendChild(actionsBtn);
         });
@@ -810,15 +814,13 @@
                 e.stopPropagation();
                 const messageId = parseInt(btn.dataset.message);
                 currentReactionMessage = messageId;
-                isReactionForRoom = btn.dataset.room === 'true';
-                currentReactionRoomId = isReactionForRoom ? currentRoom?.id : null;
                 showReactionPicker();
             }));
             document.querySelectorAll('.reaction-badge').forEach(btn => btn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 const reaction = btn.dataset.reaction;
                 const messageId = parseInt(btn.dataset.message);
-                addReaction(messageId, reaction, isReactionForRoom, currentReactionRoomId);
+                addReaction(messageId, reaction);
             }));
         }
         document.querySelectorAll('.reply-context').forEach(el => {
@@ -845,33 +847,22 @@
         } catch(e) { console.error(e); }
     }
 
-    async function addReaction(messageId, reaction, isRoom, roomId) {
+    async function addReaction(messageId, reaction) {
         try {
             const res = await fetch('/add-reaction', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ messageId, full_nick: currentUser.full_nick, reaction, isRoom, roomId })
+                body: JSON.stringify({ messageId, full_nick: currentUser.full_nick, reaction, isRoom: false })
             });
             const data = await res.json();
             if (data.success) {
-                if (isRoom) {
-                    const msg = roomMessages[roomId]?.find(m => m.id === messageId);
-                    if (msg) {
-                        msg.reactions = data.reactions;
-                        if (!msg.user_reactions) msg.user_reactions = [];
-                        if (msg.user_reactions.includes(reaction)) msg.user_reactions = msg.user_reactions.filter(r => r !== reaction);
-                        else msg.user_reactions.push(reaction);
-                        if (currentRoom?.id === roomId) renderRoomMessages(roomId);
-                    }
-                } else {
-                    const msg = publicMessages.find(m => m.id === messageId);
-                    if (msg) {
-                        msg.reactions = data.reactions;
-                        if (!msg.user_reactions) msg.user_reactions = [];
-                        if (msg.user_reactions.includes(reaction)) msg.user_reactions = msg.user_reactions.filter(r => r !== reaction);
-                        else msg.user_reactions.push(reaction);
-                        renderPublicMessages();
-                    }
+                const msg = publicMessages.find(m => m.id === messageId);
+                if (msg) {
+                    msg.reactions = data.reactions;
+                    if (!msg.user_reactions) msg.user_reactions = [];
+                    if (msg.user_reactions.includes(reaction)) msg.user_reactions = msg.user_reactions.filter(r => r !== reaction);
+                    else msg.user_reactions.push(reaction);
+                    renderPublicMessages();
                 }
             }
         } catch(e) { console.error(e); }
@@ -885,7 +876,7 @@
             const btn = document.createElement('button');
             btn.textContent = emoji;
             btn.onclick = () => {
-                addReaction(currentReactionMessage, emoji, isReactionForRoom, currentReactionRoomId);
+                addReaction(currentReactionMessage, emoji);
                 document.getElementById('reactionPickerModal').style.display = 'none';
             };
             pickerDiv.appendChild(btn);
@@ -893,271 +884,50 @@
         document.getElementById('reactionPickerModal').style.display = 'flex';
     }
 
-    async function loadRooms() {
-        const res = await fetch(`/rooms?full_nick=${encodeURIComponent(currentUser.full_nick)}`);
-        rooms = await res.json();
-        const container = document.getElementById('roomsList');
-        if (!container) return;
-        if (rooms.length === 0) { container.innerHTML = '<div style="text-align:center; padding:1rem;">Нет комнат</div>'; return; }
-        container.innerHTML = '';
-        rooms.forEach(room => {
-            const roomDiv = document.createElement('div');
-            roomDiv.className = 'room-item';
-            roomDiv.innerHTML = `
-                <div class="room-info">
-                    <div class="room-name">${escapeHtml(room.name)}</div>
-                </div>
-                <div class="room-buttons">
-                    <button class="join-room-btn" data-id="${room.id}" data-name="${escapeHtml(room.name)}">Открыть</button>
-                    <button class="leave-room-btn" data-id="${room.id}">🗑️</button>
-                </div>
-            `;
-            container.appendChild(roomDiv);
-        });
-        document.querySelectorAll('.join-room-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const roomId = parseInt(btn.dataset.id);
-                const roomName = btn.dataset.name;
-                openPrivateRoom(roomId, roomName);
-            });
-        });
-        document.querySelectorAll('.leave-room-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const roomId = parseInt(btn.dataset.id);
-                pendingLeaveRoomId = roomId;
-                document.getElementById('leaveRoomConfirmModal').style.display = 'flex';
-            });
-        });
-    }
-
-    async function leaveRoom(roomId) {
-        const res = await fetch('/leave-room', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ roomId, full_nick: currentUser.full_nick })
-        });
-        const data = await res.json();
-        if (data.success) {
-            if (currentRoom && currentRoom.id === roomId) {
-                if (currentRoom) socket.emit('leave room', currentRoom.id);
-                currentRoom = null;
-                switchTab('private');
-            }
-            await loadRooms();
-        } else {
-            alert('Ошибка при отключении');
-        }
-    }
-
-    async function joinOrCreateRoom(roomName, password) {
-        const res = await fetch('/join-room', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name: roomName, password, full_nick: currentUser.full_nick })
-        });
-        const data = await res.json();
-        if (data.success) {
-            await loadRooms();
-            openPrivateRoom(data.roomId, roomName);
-        } else {
-            alert(data.error || 'Ошибка подключения');
-        }
-    }
-
-    function openPrivateRoom(roomId, roomName) {
-        if (currentRoom) socket.emit('leave room', currentRoom.id);
-        currentRoom = { id: roomId, name: roomName };
-        if (!roomMessages[roomId]) roomMessages[roomId] = [];
-        renderPrivateRoomView();
-        loadRoomMessages(roomId);
-        socket.emit('join room', roomId);
-        socket.emit('join typing room', `room_${roomId}`);
-    }
-
-    function renderPrivateRoomView() {
-        const container = document.getElementById('privateTab');
-        container.innerHTML = `
-            <div class="room-header">
-                <button class="back-btn" id="backToRoomsBtn">←</button>
-                <div class="room-title">${escapeHtml(currentRoom.name)}</div>
-            </div>
-            <div class="chat-messages" id="roomMessagesContainer"></div>
-            <div class="typing-indicator hidden" id="roomTypingIndicator"></div>
-            <div class="input-wrapper">
-                <div class="input-row">
-                    <textarea id="roomMessageInput" placeholder="Сообщение..." rows="1"></textarea>
-                    <button class="send-btn" id="sendRoomBtn">↑</button>
-                </div>
-            </div>
-        `;
-        document.getElementById('backToRoomsBtn').onclick = () => {
-            if (currentRoom) socket.emit('leave room', currentRoom.id);
-            socket.emit('leave typing room', `room_${currentRoom.id}`);
-            currentRoom = null;
-            editingMessage = null;
-            switchTab('private');
-            loadRooms();
-        };
-        document.getElementById('sendRoomBtn').onclick = () => sendRoomMessage();
-        const roomInput = document.getElementById('roomMessageInput');
-        roomInput.addEventListener('keypress', (e) => { if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); sendRoomMessage(); } });
-        roomInput.addEventListener('input', function() { autoResizeTextarea(this); onTyping(currentRoom.id, true); });
-        renderRoomMessages(currentRoom.id);
-        socket.off('user typing').on('user typing', ({roomId, full_nick}) => {
-            if (roomId === currentRoom?.id && full_nick !== currentUser.full_nick) {
-                updateTypingIndicator(`roomTypingIndicator`, full_nick);
-            }
-        });
-    }
-
-    function renderRoomMessages(roomId) {
-        const container = document.getElementById('roomMessagesContainer');
-        if (!container) return;
-        const wasNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 200;
-        container.innerHTML = '';
-        const msgs = roomMessages[roomId] || [];
-        const showReactions = appSettings.showReactions !== false;
-        msgs.forEach(msg => {
-            const isOwn = currentUser && msg.full_nick === currentUser.full_nick;
-            const { nick, tag } = splitFullNick(msg.full_nick);
-            const msgDiv = document.createElement('div');
-            msgDiv.className = 'message-item';
-            if (isOwn) msgDiv.classList.add('own-message');
-            msgDiv.setAttribute('data-id', msg.id);
-            msgDiv.setAttribute('data-full-nick', msg.full_nick);
-            let replyHtml = '';
-            if (msg.reply_to_id && msg.reply_nick && msg.reply_text) {
-                replyHtml = `
-                    <div class="reply-context" data-message="${msg.reply_to_id}">
-                        <div class="reply-nick">${escapeHtml(msg.reply_nick)}</div>
-                        <div class="reply-text">${escapeHtml(msg.reply_text)}</div>
-                    </div>
-                `;
-            }
-            let reactionsHtml = '';
-            if (showReactions && msg.reactions && msg.reactions.length) {
-                const sorted = [...msg.reactions].sort((a,b) => b.count - a.count);
-                reactionsHtml = '<div class="reactions-container">';
-                sorted.forEach(r => {
-                    const userReacted = msg.user_reactions && msg.user_reactions.includes(r.reaction);
-                    reactionsHtml += `<button class="reaction-badge ${userReacted ? 'user-reacted' : ''}" data-reaction="${r.reaction}" data-message="${msg.id}"><span>${r.reaction}</span> <span class="reaction-count">${r.count}</span></button>`;
-                });
-                reactionsHtml += '</div>';
-            }
-            const timestamp = formatTimestamp(msg.created_at, appSettings.showDate);
-            msgDiv.innerHTML = `
-                <div class="message-header">
-                    <div class="message-nick">
-                        <span class="nick-main">${escapeHtml(nick)}</span><span class="nick-tag">${escapeHtml(tag)}</span>
-                    </div>
-                </div>
-                ${replyHtml}
-                <div class="message-text">${linkify(escapeHtml(msg.text))}</div>
-                <div class="message-footer">
-                    <div class="footer-left">
-                        ${showReactions ? `<button class="reaction-btn" data-message="${msg.id}" data-room="true"><svg viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" fill="#ff375f"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></button>` : ''}
-                        ${reactionsHtml}
-                    </div>
-                    <div class="footer-right">
-                        <span class="timestamp">${timestamp}</span>
-                        ${msg.edited ? '<span class="edited-badge">изменено</span>' : ''}
-                    </div>
-                </div>
-                <div class="message-divider"></div>
-            `;
-            container.appendChild(msgDiv);
-            const actionsBtn = document.createElement('button');
-            actionsBtn.className = 'message-actions-btn';
-            actionsBtn.innerHTML = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>';
-            actionsBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                showContextMenu(msg.id, msg.full_nick, msg.text, isOwn, true, roomId);
-            });
-            msgDiv.appendChild(actionsBtn);
-        });
-        attachReactionEvents();
-        if (wasNearBottom && !window.isUserScrolling) container.scrollTop = container.scrollHeight;
-    }
-
-    async function loadRoomMessages(roomId) {
-        try {
-            const res = await fetch(`/room-messages?roomId=${roomId}&full_nick=${encodeURIComponent(currentUser.full_nick)}`);
-            const data = await res.json();
-            roomMessages[roomId] = data;
-            if (currentRoom && currentRoom.id === roomId) renderRoomMessages(roomId);
-        } catch(e) { console.error(e); }
-    }
-
     function sendPublicMessage() {
         const input = document.getElementById('publicMessageInput');
         let text = input.value.trim();
         if (!text && !replyingTo && !editingMessage) return;
-        if (editingMessage && !editingMessage.isRoom) {
-            editMessage(editingMessage.id, text, false, null);
+        // Если режим редактирования
+        if (editingMessage) {
+            editMessage(editingMessage.id, text);
             editingMessage = null;
             input.value = '';
             autoResizeTextarea(input);
             hideEditIndicator();
             return;
         }
-        if (!text && replyingTo) {
+        // Если режим ответа
+        if (replyingTo) {
+            const payload = { full_nick: currentUser.full_nick, text, reply_to_id: replyingTo.messageId };
+            socket.emit('new message', payload);
             replyingTo = null;
             hideReplyIndicator();
+            input.value = '';
+            autoResizeTextarea(input);
+            input.focus();
             return;
         }
+        // Обычное сообщение
         const payload = { full_nick: currentUser.full_nick, text };
-        if (replyingTo) {
-            payload.reply_to_id = replyingTo.messageId;
-            replyingTo = null;
-            hideReplyIndicator();
-        }
         socket.emit('new message', payload);
         input.value = '';
         autoResizeTextarea(input);
         input.focus();
-        onTyping('public', false);
+        onTyping(false);
     }
 
-    function sendRoomMessage() {
-        if (!currentRoom) return;
-        const input = document.getElementById('roomMessageInput');
-        let text = input.value.trim();
-        if (!text && !replyingTo && !editingMessage) return;
-        if (editingMessage && editingMessage.isRoom && editingMessage.roomId === currentRoom.id) {
-            editMessage(editingMessage.id, text, true, currentRoom.id);
-            editingMessage = null;
-            input.value = '';
-            autoResizeTextarea(input);
-            hideEditIndicator();
-            return;
-        }
-        if (!text && replyingTo) {
-            replyingTo = null;
-            hideReplyIndicator();
-            return;
-        }
-        const payload = { roomId: currentRoom.id, full_nick: currentUser.full_nick, text };
-        if (replyingTo) {
-            payload.reply_to_id = replyingTo.messageId;
-            replyingTo = null;
-            hideReplyIndicator();
-        }
-        socket.emit('new room message', payload);
-        input.value = '';
-        autoResizeTextarea(input);
-        input.focus();
-        onTyping(currentRoom.id, false);
-    }
-
-    async function editMessage(messageId, newText, isRoom, roomId) {
-        const url = isRoom ? '/edit-room-message' : '/edit-message';
-        const body = isRoom ? { messageId, full_nick: currentUser.full_nick, newText, roomId } : { messageId, full_nick: currentUser.full_nick, newText };
-        const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    async function editMessage(messageId, newText) {
+        const res = await fetch('/edit-message', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ messageId, full_nick: currentUser.full_nick, newText })
+        });
         const data = await res.json();
         if (!data.success) alert('Не удалось отредактировать');
     }
 
-    function showContextMenu(messageId, full_nick, text, isOwn, isRoom, roomId) {
+    function showContextMenu(messageId, full_nick, text, isOwn) {
         const showReactions = appSettings.showReactions !== false;
         const { nick, tag } = splitFullNick(full_nick);
         document.getElementById('contextMessageNick').innerHTML = `<span class="nick-main">${escapeHtml(nick)}</span><span class="nick-tag">${escapeHtml(tag)}</span>`;
@@ -1180,32 +950,39 @@
         if (showReactions) {
             document.getElementById('ctx-react').onclick = () => {
                 currentReactionMessage = messageId;
-                isReactionForRoom = isRoom;
-                currentReactionRoomId = roomId;
                 showReactionPicker();
                 document.getElementById('contextMenuModal').style.display = 'none';
             };
         }
         document.getElementById('ctx-reply').onclick = () => {
+            // Сбрасываем редактирование, если было
+            if (editingMessage) {
+                editingMessage = null;
+                hideEditIndicator();
+                document.getElementById('publicMessageInput').value = '';
+            }
             replyingTo = { messageId, full_nick, text };
             showReplyIndicator(replyingTo);
             document.getElementById('contextMenuModal').style.display = 'none';
-            const input = document.getElementById(isRoom ? 'roomMessageInput' : 'publicMessageInput');
-            input.focus();
+            document.getElementById('publicMessageInput').focus();
         };
         document.getElementById('ctx-copy').onclick = () => { navigator.clipboard.writeText(text); document.getElementById('contextMenuModal').style.display = 'none'; };
         if (isOwn) {
             document.getElementById('ctx-edit').onclick = () => {
-                editingMessage = { id: messageId, isRoom, roomId, text };
+                // Сбрасываем ответ, если был
+                if (replyingTo) {
+                    replyingTo = null;
+                    hideReplyIndicator();
+                }
+                editingMessage = { id: messageId, text };
                 showEditIndicator(editingMessage);
-                const input = document.getElementById(isRoom ? 'roomMessageInput' : 'publicMessageInput');
+                const input = document.getElementById('publicMessageInput');
                 input.value = text;
                 input.focus();
                 document.getElementById('contextMenuModal').style.display = 'none';
             };
             document.getElementById('ctx-delete').onclick = () => {
                 pendingDeleteMessageId = messageId;
-                contextMessageData = { isRoom, roomId };
                 document.getElementById('confirmMessage').innerText = 'Удалить сообщение?';
                 document.getElementById('confirmModal').style.display = 'flex';
                 document.getElementById('contextMenuModal').style.display = 'none';
@@ -1230,12 +1007,18 @@
             `;
             const wrapper = document.querySelector('.input-wrapper');
             wrapper.parentNode.insertBefore(div, wrapper);
-            div.querySelector('.cancel-reply').onclick = () => { replyingTo = null; div.remove(); };
+            div.querySelector('.cancel-reply').onclick = () => {
+                replyingTo = null;
+                div.remove();
+            };
         } else {
             indicator.querySelector('.reply-nick').innerHTML = escapeHtml(reply.full_nick);
             indicator.querySelector('.reply-text').innerHTML = escapeHtml(reply.text);
             indicator.style.display = 'flex';
-            indicator.querySelector('.cancel-reply').onclick = () => { replyingTo = null; indicator.style.display = 'none'; };
+            indicator.querySelector('.cancel-reply').onclick = () => {
+                replyingTo = null;
+                indicator.style.display = 'none';
+            };
         }
     }
 
@@ -1259,11 +1042,19 @@
             `;
             const wrapper = document.querySelector('.input-wrapper');
             wrapper.parentNode.insertBefore(div, wrapper);
-            div.querySelector('.cancel-edit').onclick = () => { editingMessage = null; div.remove(); };
+            div.querySelector('.cancel-edit').onclick = () => {
+                editingMessage = null;
+                div.remove();
+                document.getElementById('publicMessageInput').value = '';
+            };
         } else {
             indicator.querySelector('.edit-text').innerHTML = escapeHtml(edit.text);
             indicator.style.display = 'flex';
-            indicator.querySelector('.cancel-edit').onclick = () => { editingMessage = null; indicator.style.display = 'none'; };
+            indicator.querySelector('.cancel-edit').onclick = () => {
+                editingMessage = null;
+                indicator.style.display = 'none';
+                document.getElementById('publicMessageInput').value = '';
+            };
         }
     }
 
@@ -1272,8 +1063,8 @@
         if (indicator) indicator.style.display = 'none';
     }
 
-    function updateTypingIndicator(indicatorId, full_nick) {
-        const indicator = document.getElementById(indicatorId);
+    function updateTypingIndicator(full_nick) {
+        const indicator = document.getElementById('publicTypingIndicator');
         if (!indicator) return;
         if (!full_nick) {
             indicator.classList.add('hidden');
@@ -1287,17 +1078,17 @@
         }, 2000);
     }
 
-    function onTyping(roomId, isTyping) {
+    function onTyping(isTyping) {
         if (!socket) return;
         if (isTyping) {
-            socket.emit('typing', { roomId, full_nick: currentUser.full_nick });
-            if (typingTimeouts[roomId]) clearTimeout(typingTimeouts[roomId]);
-            typingTimeouts[roomId] = setTimeout(() => {
-                socket.emit('stop typing', { roomId, full_nick: currentUser.full_nick });
+            socket.emit('typing', { roomId: 'public', full_nick: currentUser.full_nick });
+            if (typingTimeouts['public']) clearTimeout(typingTimeouts['public']);
+            typingTimeouts['public'] = setTimeout(() => {
+                socket.emit('stop typing', { roomId: 'public', full_nick: currentUser.full_nick });
             }, 1500);
         } else {
-            if (typingTimeouts[roomId]) clearTimeout(typingTimeouts[roomId]);
-            socket.emit('stop typing', { roomId, full_nick: currentUser.full_nick });
+            if (typingTimeouts['public']) clearTimeout(typingTimeouts['public']);
+            socket.emit('stop typing', { roomId: 'public', full_nick: currentUser.full_nick });
         }
     }
 
@@ -1320,37 +1111,41 @@
                 socket.on('message deleted', (msgId) => { publicMessages = publicMessages.filter(m=>m.id!==msgId); renderPublicMessages(); });
                 socket.on('message edited', ({messageId,newText}) => { const msg = publicMessages.find(m=>m.id===messageId); if(msg){ msg.text=newText; msg.edited=true; renderPublicMessages(); } });
                 socket.on('reaction updated', ({messageId, reactions}) => { const msg = publicMessages.find(m=>m.id===messageId); if(msg){ msg.reactions = reactions; renderPublicMessages(); } });
-                socket.on('room message received', ({roomId, message}) => { if(!roomMessages[roomId]) roomMessages[roomId]=[]; roomMessages[roomId].push(message); if(currentRoom && currentRoom.id===roomId) renderRoomMessages(roomId); });
-                socket.on('room_message_deleted', ({roomId, messageId}) => { if(roomMessages[roomId]) { roomMessages[roomId]=roomMessages[roomId].filter(m=>m.id!==messageId); if(currentRoom && currentRoom.id===roomId) renderRoomMessages(roomId); } });
-                socket.on('room_message_edited', ({roomId, messageId, newText}) => { const msg = roomMessages[roomId]?.find(m=>m.id===messageId); if(msg){ msg.text=newText; msg.edited=true; if(currentRoom && currentRoom.id===roomId) renderRoomMessages(roomId); } });
-                socket.on('room_reaction_updated', ({roomId, messageId, reactions}) => { const msg = roomMessages[roomId]?.find(m=>m.id===messageId); if(msg){ msg.reactions = reactions; if(currentRoom && currentRoom.id===roomId) renderRoomMessages(roomId); } });
-                socket.on('room_created', () => { if(document.querySelector('.top-tab[data-tab="private"]').classList.contains('active')) loadRooms(); });
-                socket.on('user typing', ({roomId, full_nick}) => {
-                    if (roomId === 'public') updateTypingIndicator('publicTypingIndicator', full_nick);
-                    else if (currentRoom && roomId === currentRoom.id) updateTypingIndicator('roomTypingIndicator', full_nick);
-                });
-                socket.on('user stop typing', ({roomId}) => {
-                    if (roomId === 'public') document.getElementById('publicTypingIndicator')?.classList.add('hidden');
-                    else if (currentRoom && roomId === currentRoom.id) document.getElementById('roomTypingIndicator')?.classList.add('hidden');
-                });
+                socket.on('user typing', ({roomId, full_nick}) => { if (roomId === 'public') updateTypingIndicator(full_nick); });
+                socket.on('user stop typing', ({roomId}) => { if (roomId === 'public') document.getElementById('publicTypingIndicator')?.classList.add('hidden'); });
                 await loadPublicMessages();
-                await loadRooms();
                 const { nick: n, tag: t } = splitFullNick(currentUser.full_nick);
-                document.getElementById('displayNickWithTag').innerHTML = `${escapeHtml(n)}<span style="color:#6c6c70;">${escapeHtml(t)}</span>`;
+                document.getElementById('displayNickWithTag').innerHTML = `${escapeHtml(n)}<span style="color:var(--text-secondary);">${escapeHtml(t)}</span>`;
+                // Настройки
                 document.getElementById('showDateToggle').checked = appSettings.showDate !== false;
                 document.getElementById('showReactionsToggle').checked = appSettings.showReactions !== false;
+                document.getElementById('lightThemeSelect').value = appSettings.lightThemeVariant || 'regular';
+                document.getElementById('darkThemeSelect').value = appSettings.darkThemeVariant || 'regular';
+                document.getElementById('accentSelect').value = appSettings.accent;
+                // Слушатели настроек
                 document.getElementById('showDateToggle').onchange = (e) => {
                     appSettings.showDate = e.target.checked;
                     localStorage.setItem('simply_settings', JSON.stringify(appSettings));
                     renderPublicMessages();
-                    if (currentRoom) renderRoomMessages(currentRoom.id);
                 };
                 document.getElementById('showReactionsToggle').onchange = (e) => {
                     appSettings.showReactions = e.target.checked;
                     localStorage.setItem('simply_settings', JSON.stringify(appSettings));
                     renderPublicMessages();
-                    if (currentRoom) renderRoomMessages(currentRoom.id);
                 };
+                document.getElementById('lightThemeSelect').onchange = (e) => {
+                    appSettings.lightThemeVariant = e.target.value;
+                    if (appSettings.themeMode === 'light') applyTheme();
+                    localStorage.setItem('simply_settings', JSON.stringify(appSettings));
+                };
+                document.getElementById('darkThemeSelect').onchange = (e) => {
+                    appSettings.darkThemeVariant = e.target.value;
+                    if (appSettings.themeMode === 'dark') applyTheme();
+                    localStorage.setItem('simply_settings', JSON.stringify(appSettings));
+                };
+                document.getElementById('accentSelect').onchange = e => applyAccent(e.target.value);
+                applyAccent(appSettings.accent);
+                applyTheme();
                 return true;
             } else { document.getElementById('loginError').innerText = data.error || 'Ошибка входа'; return false; }
         } catch(e) { document.getElementById('loginError').innerText = 'Ошибка соединения'; return false; }
@@ -1374,37 +1169,39 @@
                 socket.on('message deleted', (msgId) => { publicMessages = publicMessages.filter(m=>m.id!==msgId); renderPublicMessages(); });
                 socket.on('message edited', ({messageId,newText}) => { const msg = publicMessages.find(m=>m.id===messageId); if(msg){ msg.text=newText; msg.edited=true; renderPublicMessages(); } });
                 socket.on('reaction updated', ({messageId, reactions}) => { const msg = publicMessages.find(m=>m.id===messageId); if(msg){ msg.reactions = reactions; renderPublicMessages(); } });
-                socket.on('room message received', ({roomId, message}) => { if(!roomMessages[roomId]) roomMessages[roomId]=[]; roomMessages[roomId].push(message); if(currentRoom && currentRoom.id===roomId) renderRoomMessages(roomId); });
-                socket.on('room_message_deleted', ({roomId, messageId}) => { if(roomMessages[roomId]) { roomMessages[roomId]=roomMessages[roomId].filter(m=>m.id!==messageId); if(currentRoom && currentRoom.id===roomId) renderRoomMessages(roomId); } });
-                socket.on('room_message_edited', ({roomId, messageId, newText}) => { const msg = roomMessages[roomId]?.find(m=>m.id===messageId); if(msg){ msg.text=newText; msg.edited=true; if(currentRoom && currentRoom.id===roomId) renderRoomMessages(roomId); } });
-                socket.on('room_reaction_updated', ({roomId, messageId, reactions}) => { const msg = roomMessages[roomId]?.find(m=>m.id===messageId); if(msg){ msg.reactions = reactions; if(currentRoom && currentRoom.id===roomId) renderRoomMessages(roomId); } });
-                socket.on('room_created', () => { if(document.querySelector('.top-tab[data-tab="private"]').classList.contains('active')) loadRooms(); });
-                socket.on('user typing', ({roomId, full_nick}) => {
-                    if (roomId === 'public') updateTypingIndicator('publicTypingIndicator', full_nick);
-                    else if (currentRoom && roomId === currentRoom.id) updateTypingIndicator('roomTypingIndicator', full_nick);
-                });
-                socket.on('user stop typing', ({roomId}) => {
-                    if (roomId === 'public') document.getElementById('publicTypingIndicator')?.classList.add('hidden');
-                    else if (currentRoom && roomId === currentRoom.id) document.getElementById('roomTypingIndicator')?.classList.add('hidden');
-                });
+                socket.on('user typing', ({roomId, full_nick}) => { if (roomId === 'public') updateTypingIndicator(full_nick); });
+                socket.on('user stop typing', ({roomId}) => { if (roomId === 'public') document.getElementById('publicTypingIndicator')?.classList.add('hidden'); });
                 await loadPublicMessages();
-                await loadRooms();
                 const { nick: n, tag: t } = splitFullNick(currentUser.full_nick);
-                document.getElementById('displayNickWithTag').innerHTML = `${escapeHtml(n)}<span style="color:#6c6c70;">${escapeHtml(t)}</span>`;
+                document.getElementById('displayNickWithTag').innerHTML = `${escapeHtml(n)}<span style="color:var(--text-secondary);">${escapeHtml(t)}</span>`;
                 document.getElementById('showDateToggle').checked = appSettings.showDate !== false;
                 document.getElementById('showReactionsToggle').checked = appSettings.showReactions !== false;
+                document.getElementById('lightThemeSelect').value = appSettings.lightThemeVariant || 'regular';
+                document.getElementById('darkThemeSelect').value = appSettings.darkThemeVariant || 'regular';
+                document.getElementById('accentSelect').value = appSettings.accent;
                 document.getElementById('showDateToggle').onchange = (e) => {
                     appSettings.showDate = e.target.checked;
                     localStorage.setItem('simply_settings', JSON.stringify(appSettings));
                     renderPublicMessages();
-                    if (currentRoom) renderRoomMessages(currentRoom.id);
                 };
                 document.getElementById('showReactionsToggle').onchange = (e) => {
                     appSettings.showReactions = e.target.checked;
                     localStorage.setItem('simply_settings', JSON.stringify(appSettings));
                     renderPublicMessages();
-                    if (currentRoom) renderRoomMessages(currentRoom.id);
                 };
+                document.getElementById('lightThemeSelect').onchange = (e) => {
+                    appSettings.lightThemeVariant = e.target.value;
+                    if (appSettings.themeMode === 'light') applyTheme();
+                    localStorage.setItem('simply_settings', JSON.stringify(appSettings));
+                };
+                document.getElementById('darkThemeSelect').onchange = (e) => {
+                    appSettings.darkThemeVariant = e.target.value;
+                    if (appSettings.themeMode === 'dark') applyTheme();
+                    localStorage.setItem('simply_settings', JSON.stringify(appSettings));
+                };
+                document.getElementById('accentSelect').onchange = e => applyAccent(e.target.value);
+                applyAccent(appSettings.accent);
+                applyTheme();
                 return true;
             }
         } catch(e) {}
@@ -1421,7 +1218,6 @@
         document.querySelectorAll('.top-tab').forEach(t => t.classList.remove('active'));
         document.getElementById(`${tabId}Tab`).classList.add('active');
         document.querySelector(`.top-tab[data-tab="${tabId}"]`).classList.add('active');
-        if (tabId === 'private' && !currentRoom) loadRooms();
     }
 
     async function changeNick(newNick) {
@@ -1435,7 +1231,7 @@
             currentUser.full_nick = data.newFullNick;
             localStorage.setItem('simply_nick', newNick);
             const { nick, tag } = splitFullNick(currentUser.full_nick);
-            document.getElementById('displayNickWithTag').innerHTML = `${escapeHtml(nick)}<span style="color:#6c6c70;">${escapeHtml(tag)}</span>`;
+            document.getElementById('displayNickWithTag').innerHTML = `${escapeHtml(nick)}<span style="color:var(--text-secondary);">${escapeHtml(tag)}</span>`;
             await loadPublicMessages();
             alert('Ник изменён');
         } else alert(data.error || 'Ошибка');
@@ -1462,9 +1258,6 @@
     }
 
     window.onload = async () => {
-        applyAccent(appSettings.accent);
-        document.getElementById('accentSelect').value = appSettings.accent;
-        document.getElementById('accentSelect').onchange = e => applyAccent(e.target.value);
         const logged = await verifyToken();
         if (!logged) {
             document.getElementById('loginScreen').style.display = 'flex';
@@ -1481,7 +1274,7 @@
         };
         document.getElementById('sendPublicBtn').onclick = sendPublicMessage;
         const publicInput = document.getElementById('publicMessageInput');
-        publicInput.addEventListener('input', () => { autoResizeTextarea(publicInput); onTyping('public', true); });
+        publicInput.addEventListener('input', () => { autoResizeTextarea(publicInput); onTyping(true); });
         publicInput.addEventListener('keypress', (e) => { if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); sendPublicMessage(); } });
         document.querySelectorAll('.top-tab').forEach(btn => btn.addEventListener('click', () => switchTab(btn.dataset.tab)));
         document.getElementById('changeNickBtn').onclick = () => document.getElementById('changeNickModal').style.display = 'flex';
@@ -1490,47 +1283,19 @@
         document.getElementById('cancelNickBtn').onclick = () => document.getElementById('changeNickModal').style.display = 'none';
         document.getElementById('applyPinBtn').onclick = async () => { const old=document.getElementById('oldPinInput').value, newP=document.getElementById('newPinInput').value; if(old&&newP&&newP.length===4&&/^\d+$/.test(newP)){ await changePin(old,newP); document.getElementById('changePinModal').style.display='none'; document.getElementById('oldPinInput').value=''; document.getElementById('newPinInput').value=''; } else alert('PIN должен быть 4 цифры'); };
         document.getElementById('cancelPinBtn').onclick = () => document.getElementById('changePinModal').style.display = 'none';
-        document.getElementById('createRoomFab').onclick = () => document.getElementById('joinRoomModal').style.display = 'flex';
-        document.getElementById('cancelJoinRoomBtn').onclick = () => document.getElementById('joinRoomModal').style.display = 'none';
-        document.getElementById('confirmJoinRoomBtn').onclick = async () => {
-            const name = document.getElementById('roomNameInput').value.trim();
-            const password = document.getElementById('roomPasswordInput').value;
-            if (!name || !password) {
-                alert('Введите название и пароль');
-                return;
-            }
-            await joinOrCreateRoom(name, password);
-            document.getElementById('joinRoomModal').style.display = 'none';
-            document.getElementById('roomNameInput').value = '';
-            document.getElementById('roomPasswordInput').value = '';
-        };
         document.getElementById('closeReactionPickerBtn').onclick = () => document.getElementById('reactionPickerModal').style.display = 'none';
         document.getElementById('confirmOkBtn').onclick = async () => {
             if (pendingDeleteMessageId) {
-                const isRoom = contextMessageData?.isRoom || false;
-                const roomId = contextMessageData?.roomId || null;
-                const url = isRoom ? '/delete-room-message' : '/delete-message';
-                await fetch(url, {
+                await fetch('/delete-message', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ messageId: pendingDeleteMessageId, full_nick: currentUser.full_nick, roomId })
+                    body: JSON.stringify({ messageId: pendingDeleteMessageId, full_nick: currentUser.full_nick })
                 });
                 pendingDeleteMessageId = null;
             }
             document.getElementById('confirmModal').style.display = 'none';
         };
         document.getElementById('confirmCancelBtn').onclick = () => { pendingDeleteMessageId = null; document.getElementById('confirmModal').style.display = 'none'; };
-        document.getElementById('confirmLeaveBtn').onclick = async () => {
-            if (pendingLeaveRoomId) {
-                await leaveRoom(pendingLeaveRoomId);
-                pendingLeaveRoomId = null;
-            }
-            document.getElementById('leaveRoomConfirmModal').style.display = 'none';
-        };
-        document.getElementById('cancelLeaveBtn').onclick = () => {
-            pendingLeaveRoomId = null;
-            document.getElementById('leaveRoomConfirmModal').style.display = 'none';
-        };
         window.isUserScrolling = false;
         document.getElementById('publicMessagesContainer')?.addEventListener('scroll', () => {
             window.isUserScrolling = true;
