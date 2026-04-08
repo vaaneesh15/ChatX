@@ -6,9 +6,11 @@
     <meta name="theme-color" content="#1c1c1e" id="themeColorMeta">
     <title>ChatX</title>
     
+    <!-- PWA manifest и фавикон -->
     <link rel="manifest" href="/manifest.json">
     <link rel="icon" type="image/x-icon" href="/favicon.ico">
     
+    <!-- OneSignal SDK (только для регистрации Service Worker) -->
     <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
     <script>
       window.OneSignalDeferred = window.OneSignalDeferred || [];
@@ -20,6 +22,7 @@
         if (permission === 'default') {
           await OneSignal.Slidedown.promptPush();
         }
+        // Устанавливаем external_user_id после логина
       });
     </script>
     
@@ -42,6 +45,8 @@
             position: fixed;
             width: 100%;
         }
+        
+        /* Тёмная тема (единственная) */
         :root {
             --bg-page: #121212;
             --text-primary: #ffffff;
@@ -97,6 +102,35 @@
             overflow: hidden;
         }
 
+        /* Верхняя панель только с кнопкой настроек */
+        .top-bar {
+            background: var(--input-bg);
+            padding-top: env(safe-area-inset-top, 0);
+            border-bottom: 1px solid var(--border-light);
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            padding: 0.6rem 1rem;
+            flex-shrink: 0;
+        }
+        .settings-icon {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0.4rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-secondary);
+        }
+        .settings-icon svg {
+            width: 1.5rem;
+            height: 1.5rem;
+            stroke: currentColor;
+            stroke-width: 1.5;
+            fill: none;
+        }
+
         .chat-messages {
             flex: 1;
             overflow-y: auto;
@@ -111,6 +145,9 @@
             width: 100%;
             position: relative;
             background: transparent;
+        }
+        .message-item.highlight {
+            background-color: rgba(var(--accent-rgb), 0.3);
         }
         .message-header {
             display: flex;
@@ -157,10 +194,6 @@
         .message-text { 
             font-size:1rem; line-height:1.4; color:var(--text-primary); 
             white-space:pre-wrap; word-break:break-word; 
-            transition: color 0.2s;
-        }
-        .message-text.highlight {
-            color: var(--accent-color);
         }
         .message-text a {
             color: var(--accent-color);
@@ -259,36 +292,12 @@
             background: var(--input-bg);
             border-top: 1px solid var(--border-light);
             padding-bottom: env(safe-area-inset-bottom,0);
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 0.5rem 1rem;
-        }
-        .settings-btn {
-            background: var(--input-bg);
-            border: none;
-            width: 2.5rem;
-            height: 2.5rem;
-            border-radius: 2rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            color: var(--text-primary);
-        }
-        .settings-btn svg {
-            width: 1.4rem;
-            height: 1.4rem;
-            stroke: currentColor;
-            stroke-width: 1.5;
-            fill: none;
         }
         .input-row {
-            flex: 1;
             display: flex;
             gap: 12px;
             align-items: center;
-            background: var(--input-bg);
+            padding: 0.9rem 1rem;
         }
         .input-row textarea {
             flex:1; background:transparent; border:none; padding:0.75rem 0; font-size:1rem;
@@ -351,6 +360,7 @@
             margin-left: auto;
         }
 
+        /* Модальные окна */
         .modal {
             display: none; position: fixed; top:0; left:0; width:100%; height:100%;
             background-color:rgba(0,0,0,0.7); backdrop-filter:blur(12px); z-index:10000;
@@ -363,16 +373,9 @@
         .modal-content h3 { margin-bottom:1rem; font-size:1.3rem; font-weight:590; color:var(--text-primary); }
         .modal-setting { margin-bottom:1.2rem; }
         .modal-setting label { display:block; margin-bottom:0.4rem; font-weight:500; font-size:0.9rem; color:var(--text-secondary); }
-        .modal-setting input, .modal-setting select {
+        .modal-setting input {
             width:100%; padding:0.6rem 1rem; background:var(--bg-page); border:0.5px solid var(--border-light);
             border-radius:1rem; font-size:1rem; color:var(--text-primary); outline:none;
-        }
-        .modal-setting select {
-            appearance: none;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-            background-repeat: no-repeat;
-            background-position: right 1rem center;
-            background-size: 1.2rem;
         }
         .modal-buttons { display:flex; gap:10px; margin-top:1rem; }
         .modal-buttons button {
@@ -438,6 +441,59 @@
             padding: 0.3rem;
             border-radius: 1rem;
         }
+
+        .settings-container { 
+            display: flex; 
+            flex-direction: column; 
+            gap: 0;
+        }
+        .setting-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+            padding: 1rem 0;
+            border-bottom: 1px solid var(--border-light);
+        }
+        .setting-row:last-child {
+            border-bottom: none;
+        }
+        .setting-label {
+            font-weight: 500;
+            font-size: 1rem;
+            color: var(--text-primary);
+        }
+        .nick-readonly {
+            background: var(--input-bg);
+            border: 1px solid var(--border-light);
+            border-radius: 1rem;
+            padding: 0.6rem 1rem;
+            color: var(--text-primary);
+            font-size: 1rem;
+        }
+        .setting-row select, .setting-row button {
+            background: var(--input-bg);
+            border: 1px solid var(--border-light);
+            border-radius: 1rem;
+            padding: 0.6rem 1rem;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            appearance: none;
+            cursor: pointer;
+            min-width: 120px;
+            text-align: center;
+        }
+        .setting-row select {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 1rem center;
+            background-size: 1.2rem;
+            padding-right: 2rem;
+        }
+        .setting-row button {
+            background: var(--input-bg);
+        }
         .switch {
             position: relative;
             display: inline-block;
@@ -492,15 +548,18 @@
 </div>
 
 <div id="appContainer" class="app-container" style="display: none;">
+    <div class="top-bar">
+        <button class="settings-icon" id="openSettingsBtn">
+            <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" fill="none">
+                <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H5.78a1.65 1.65 0 0 0-1.51 1 1.65 1.65 0 0 0 .33 1.82l.04.04A10 10 0 0 0 12 17.66a10 10 0 0 0 6.36-2.62l.04-.04Z" />
+                <path d="M16.5 9.4a10 10 0 0 0-9-5.4 10 10 0 0 0-9 5.4" />
+            </svg>
+        </button>
+    </div>
     <div class="chat-messages" id="messagesContainer"></div>
     <div class="typing-indicator hidden" id="typingIndicator"></div>
     <div class="input-wrapper">
-        <button class="settings-btn" id="settingsBtn">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="3"></circle>
-                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-            </svg>
-        </button>
         <div class="input-row">
             <textarea id="messageInput" placeholder="Сообщение..." rows="1"></textarea>
             <button class="send-btn" id="sendBtn">↑</button>
@@ -508,58 +567,59 @@
     </div>
 </div>
 
-<!-- Модальное окно настроек -->
+<!-- Модальные окна -->
 <div id="settingsModal" class="modal">
     <div class="modal-content">
         <h3>Настройки</h3>
-        <div class="modal-setting">
-            <label>Ваш ник</label>
-            <div id="displayNickWithTag" style="background:var(--bg-page); border:0.5px solid var(--border-light); border-radius:1rem; padding:0.6rem 1rem;"></div>
-            <button id="changeNickBtn" style="margin-top:0.5rem; width:100%;">Изменить ник</button>
+        <div class="settings-container">
+            <div class="setting-row">
+                <span class="setting-label">Ваш ник</span>
+                <div id="displayNickWithTag" class="nick-readonly"></div>
+                <button id="changeNickBtn">Изменить</button>
+            </div>
+            <div class="setting-row">
+                <span class="setting-label">Сменить PIN</span>
+                <button id="changePinBtn">Сменить</button>
+            </div>
+            <div class="setting-row">
+                <span class="setting-label">Оттенок</span>
+                <select id="accentSelect">
+                    <option value="blue">Синий</option>
+                    <option value="purple">Фиолетовый</option>
+                    <option value="pink">Розовый</option>
+                    <option value="red">Красный</option>
+                    <option value="orange">Оранжевый</option>
+                    <option value="mint">Мятный</option>
+                </select>
+            </div>
+            <div class="setting-row">
+                <span class="setting-label">Показывать дату</span>
+                <label class="switch">
+                    <input type="checkbox" id="showDateToggle">
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <div class="setting-row">
+                <span class="setting-label">Реакции</span>
+                <label class="switch">
+                    <input type="checkbox" id="showReactionsToggle" checked>
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <div class="setting-row">
+                <span class="setting-label">Уведомления</span>
+                <label class="switch">
+                    <input type="checkbox" id="notificationsToggle" checked>
+                    <span class="slider"></span>
+                </label>
+            </div>
         </div>
-        <div class="modal-setting">
-            <label>Сменить PIN</label>
-            <button id="changePinBtn" style="width:100%;">Сменить PIN</button>
-        </div>
-        <div class="modal-setting">
-            <label>Оттенок</label>
-            <select id="accentSelect">
-                <option value="blue">Синий</option>
-                <option value="purple">Фиолетовый</option>
-                <option value="pink">Розовый</option>
-                <option value="red">Красный</option>
-                <option value="orange">Оранжевый</option>
-                <option value="mint">Мятный</option>
-            </select>
-        </div>
-        <div class="modal-setting">
-            <label>Показывать дату</label>
-            <label class="switch">
-                <input type="checkbox" id="showDateToggle">
-                <span class="slider"></span>
-            </label>
-        </div>
-        <div class="modal-setting">
-            <label>Реакции</label>
-            <label class="switch">
-                <input type="checkbox" id="showReactionsToggle" checked>
-                <span class="slider"></span>
-            </label>
-        </div>
-        <div class="modal-setting">
-            <label>Уведомления</label>
-            <label class="switch">
-                <input type="checkbox" id="notificationsToggle" checked>
-                <span class="slider"></span>
-            </label>
-        </div>
-        <div class="modal-buttons">
+        <div class="modal-buttons" style="margin-top: 1rem;">
             <button id="closeSettingsBtn">Закрыть</button>
         </div>
     </div>
 </div>
 
-<!-- Модальные окна -->
 <div id="changeNickModal" class="modal"><div class="modal-content"><h3>Смена ника</h3><div class="modal-setting"><label>Новый ник</label><input type="text" id="newNickInput" placeholder="Новый ник"></div><div class="modal-buttons"><button id="cancelNickBtn">Закрыть</button><button id="applyNickBtn">Применить</button></div></div></div>
 <div id="changePinModal" class="modal"><div class="modal-content"><h3>Смена PIN</h3><div class="modal-setting"><label>Старый PIN</label><input type="password" id="oldPinInput" placeholder="Старый PIN" maxlength="4" inputmode="numeric"></div><div class="modal-setting"><label>Новый PIN</label><input type="password" id="newPinInput" placeholder="Новый PIN" maxlength="4" inputmode="numeric"></div><div class="modal-buttons"><button id="cancelPinBtn">Закрыть</button><button id="applyPinBtn">Применить</button></div></div></div>
 <div id="contextMenuModal" class="modal context-menu-modal"><div class="modal-content"><div id="contextMessageNick" class="context-message-nick"></div><div id="contextMessagePreview" class="context-message-preview"></div><div class="context-menu-buttons" id="contextMenuButtons"></div></div></div>
@@ -621,6 +681,31 @@
         document.body.classList.add(accentClass);
         appSettings.accent = accent;
         localStorage.setItem('simply_settings', JSON.stringify(appSettings));
+        const color = getComputedStyle(document.body).getPropertyValue('--accent-color').trim();
+        if (color) {
+            const rgb = color.match(/\d+/g);
+            if (rgb) document.body.style.setProperty('--accent-rgb', rgb.join(','));
+            const meta = document.getElementById('themeColorMeta');
+            if (meta) meta.setAttribute('content', color);
+        }
+    }
+
+    function setOneSignalUserId(userId) {
+        if (window.OneSignalDeferred) {
+            OneSignalDeferred.push(async function(OneSignal) {
+                await OneSignal.login(userId);
+                console.log('OneSignal external_user_id установлен:', userId);
+            });
+        }
+    }
+
+    async function loadMessages() {
+        try {
+            const res = await fetch(`/messages?full_nick=${encodeURIComponent(currentUser.full_nick)}`);
+            const data = await res.json();
+            messages = data;
+            renderMessages();
+        } catch(e) { console.error(e); }
     }
 
     function renderMessages() {
@@ -722,21 +807,12 @@
         });
     }
 
-    async function loadMessages() {
-        try {
-            const res = await fetch(`/messages?full_nick=${encodeURIComponent(currentUser.full_nick)}`);
-            const data = await res.json();
-            messages = data;
-            renderMessages();
-        } catch(e) { console.error(e); }
-    }
-
     async function addReaction(messageId, reaction) {
         try {
             const res = await fetch('/add-reaction', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ messageId, full_nick: currentUser.full_nick, reaction })
+                body: JSON.stringify({ messageId, full_nick: currentUser.full_nick, reaction, isRoom: false })
             });
             const data = await res.json();
             if (data.success) {
@@ -750,6 +826,22 @@
                 }
             }
         } catch(e) { console.error(e); }
+    }
+
+    function showReactionPicker() {
+        const pickerDiv = document.getElementById('reactionsPicker');
+        const reactionsList = ['❤️','🔥','👍','👎','👌','🖕','👀','😁','😭','😔','😩','😳','😠','😨','💩','👻','👽','👾','💋','💊'];
+        pickerDiv.innerHTML = '';
+        reactionsList.forEach(emoji => {
+            const btn = document.createElement('button');
+            btn.textContent = emoji;
+            btn.onclick = () => {
+                addReaction(currentReactionMessage, emoji);
+                document.getElementById('reactionPickerModal').style.display = 'none';
+            };
+            pickerDiv.appendChild(btn);
+        });
+        document.getElementById('reactionPickerModal').style.display = 'flex';
     }
 
     function sendMessage() {
@@ -779,7 +871,7 @@
         input.value = '';
         autoResizeTextarea(input);
         input.focus();
-        stopTyping();
+        onTyping(false);
     }
 
     async function editMessage(messageId, newText) {
@@ -941,16 +1033,18 @@
         }, 2000);
     }
 
-    function startTyping() {
+    function onTyping(isTyping) {
         if (!socket) return;
-        socket.emit('typing', currentUser.full_nick);
-        if (typingTimeout) clearTimeout(typingTimeout);
-        typingTimeout = setTimeout(stopTyping, 1500);
-    }
-
-    function stopTyping() {
-        if (!socket) return;
-        socket.emit('stop typing');
+        if (isTyping) {
+            socket.emit('typing', { roomId: 'public', full_nick: currentUser.full_nick });
+            if (typingTimeout) clearTimeout(typingTimeout);
+            typingTimeout = setTimeout(() => {
+                socket.emit('stop typing', { roomId: 'public', full_nick: currentUser.full_nick });
+            }, 1500);
+        } else {
+            if (typingTimeout) clearTimeout(typingTimeout);
+            socket.emit('stop typing', { roomId: 'public', full_nick: currentUser.full_nick });
+        }
     }
 
     function scrollToMessage(messageId) {
@@ -967,31 +1061,6 @@
         textarea.style.height = Math.min(textarea.scrollHeight, 150) + 'px';
     }
 
-    function showReactionPicker() {
-        const pickerDiv = document.getElementById('reactionsPicker');
-        const reactionsList = ['❤️','🔥','👍','👎','👌','🖕','👀','😁','😭','😔','😩','😳','😠','😨','💩','👻','👽','👾','💋','💊'];
-        pickerDiv.innerHTML = '';
-        reactionsList.forEach(emoji => {
-            const btn = document.createElement('button');
-            btn.textContent = emoji;
-            btn.onclick = () => {
-                addReaction(currentReactionMessage, emoji);
-                document.getElementById('reactionPickerModal').style.display = 'none';
-            };
-            pickerDiv.appendChild(btn);
-        });
-        document.getElementById('reactionPickerModal').style.display = 'flex';
-    }
-
-    async function setOneSignalUserId(userId) {
-        if (window.OneSignalDeferred) {
-            OneSignalDeferred.push(async function(OneSignal) {
-                await OneSignal.login(userId);
-                console.log('OneSignal external_user_id установлен:', userId);
-            });
-        }
-    }
-
     async function authWithPin(nick, pin) {
         try {
             const res = await fetch('/auth', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ nick, pin }) });
@@ -1006,9 +1075,12 @@
                 if (socket) socket.disconnect();
                 socket = io();
                 socket.emit('user online', currentUser.full_nick);
+                socket.emit('join public');
                 
+                // Установка external_user_id для OneSignal
                 await setOneSignalUserId(currentUser.full_nick);
                 
+                // Запрос разрешения на уведомления
                 if (Notification.permission === 'default') {
                     Notification.requestPermission();
                 }
@@ -1016,6 +1088,23 @@
                 socket.on('message received', (newMsg) => {
                     messages.push(newMsg);
                     renderMessages();
+                    // Показываем уведомление, если включено и сообщение не от себя
+                    if (appSettings.notifications && newMsg.full_nick !== currentUser.full_nick && Notification.permission === 'granted') {
+                        const { nick, tag } = splitFullNick(newMsg.full_nick);
+                        if ('serviceWorker' in navigator && navigator.serviceWorker.ready) {
+                            navigator.serviceWorker.ready.then(registration => {
+                                registration.showNotification('Новое сообщение', {
+                                    body: `${nick}${tag}: ${newMsg.text.substring(0, 100)}`,
+                                    icon: '/favicon.ico'
+                                });
+                            });
+                        } else {
+                            new Notification('Новое сообщение', {
+                                body: `${nick}${tag}: ${newMsg.text.substring(0, 100)}`,
+                                icon: '/favicon.ico'
+                            });
+                        }
+                    }
                 });
                 socket.on('message deleted', (msgId) => {
                     messages = messages.filter(m => m.id !== msgId);
@@ -1029,15 +1118,14 @@
                     const msg = messages.find(m => m.id === messageId);
                     if (msg) { msg.reactions = reactions; renderMessages(); }
                 });
-                socket.on('user typing', (full_nick) => {
-                    if (full_nick !== currentUser.full_nick) updateTypingIndicator(full_nick);
+                socket.on('user typing', ({roomId, full_nick}) => {
+                    if (roomId === 'public' && full_nick !== currentUser.full_nick) updateTypingIndicator(full_nick);
                 });
-                socket.on('user stop typing', () => {
-                    updateTypingIndicator(null);
+                socket.on('user stop typing', ({roomId}) => {
+                    if (roomId === 'public') updateTypingIndicator(null);
                 });
                 
                 await loadMessages();
-                
                 const { nick: n, tag: t } = splitFullNick(currentUser.full_nick);
                 document.getElementById('displayNickWithTag').innerHTML = `${escapeHtml(n)}<span style="color:var(--text-secondary);">${escapeHtml(t)}</span>`;
                 document.getElementById('showDateToggle').checked = appSettings.showDate !== false;
@@ -1062,14 +1150,6 @@
                 document.getElementById('accentSelect').onchange = e => applyAccent(e.target.value);
                 
                 applyAccent(appSettings.accent);
-                
-                // Слушаем возвращение приложения в foreground
-                document.addEventListener('visibilitychange', () => {
-                    if (!document.hidden) {
-                        loadMessages();
-                    }
-                });
-                
                 return true;
             } else {
                 document.getElementById('loginError').innerText = data.error || 'Ошибка входа';
@@ -1094,6 +1174,7 @@
                 document.getElementById('appContainer').style.display = 'flex';
                 socket = io();
                 socket.emit('user online', currentUser.full_nick);
+                socket.emit('join public');
                 
                 await setOneSignalUserId(currentUser.full_nick);
                 
@@ -1104,6 +1185,22 @@
                 socket.on('message received', (newMsg) => {
                     messages.push(newMsg);
                     renderMessages();
+                    if (appSettings.notifications && newMsg.full_nick !== currentUser.full_nick && Notification.permission === 'granted') {
+                        const { nick, tag } = splitFullNick(newMsg.full_nick);
+                        if ('serviceWorker' in navigator && navigator.serviceWorker.ready) {
+                            navigator.serviceWorker.ready.then(registration => {
+                                registration.showNotification('Новое сообщение', {
+                                    body: `${nick}${tag}: ${newMsg.text.substring(0, 100)}`,
+                                    icon: '/favicon.ico'
+                                });
+                            });
+                        } else {
+                            new Notification('Новое сообщение', {
+                                body: `${nick}${tag}: ${newMsg.text.substring(0, 100)}`,
+                                icon: '/favicon.ico'
+                            });
+                        }
+                    }
                 });
                 socket.on('message deleted', (msgId) => {
                     messages = messages.filter(m => m.id !== msgId);
@@ -1117,15 +1214,14 @@
                     const msg = messages.find(m => m.id === messageId);
                     if (msg) { msg.reactions = reactions; renderMessages(); }
                 });
-                socket.on('user typing', (full_nick) => {
-                    if (full_nick !== currentUser.full_nick) updateTypingIndicator(full_nick);
+                socket.on('user typing', ({roomId, full_nick}) => {
+                    if (roomId === 'public' && full_nick !== currentUser.full_nick) updateTypingIndicator(full_nick);
                 });
-                socket.on('user stop typing', () => {
-                    updateTypingIndicator(null);
+                socket.on('user stop typing', ({roomId}) => {
+                    if (roomId === 'public') updateTypingIndicator(null);
                 });
                 
                 await loadMessages();
-                
                 const { nick: n, tag: t } = splitFullNick(currentUser.full_nick);
                 document.getElementById('displayNickWithTag').innerHTML = `${escapeHtml(n)}<span style="color:var(--text-secondary);">${escapeHtml(t)}</span>`;
                 document.getElementById('showDateToggle').checked = appSettings.showDate !== false;
@@ -1150,13 +1246,6 @@
                 document.getElementById('accentSelect').onchange = e => applyAccent(e.target.value);
                 
                 applyAccent(appSettings.accent);
-                
-                document.addEventListener('visibilitychange', () => {
-                    if (!document.hidden) {
-                        loadMessages();
-                    }
-                });
-                
                 return true;
             }
         } catch(e) {}
@@ -1175,7 +1264,7 @@
             localStorage.setItem('simply_nick', newNick);
             const { nick, tag } = splitFullNick(currentUser.full_nick);
             document.getElementById('displayNickWithTag').innerHTML = `${escapeHtml(nick)}<span style="color:var(--text-secondary);">${escapeHtml(tag)}</span>`;
-            await setOneSignalUserId(currentUser.full_nick);
+            await loadMessages();
             alert('Ник изменён');
         } else alert(data.error || 'Ошибка');
     }
@@ -1209,12 +1298,22 @@
         };
         document.getElementById('sendBtn').onclick = sendMessage;
         const messageInput = document.getElementById('messageInput');
-        messageInput.addEventListener('input', () => { autoResizeTextarea(messageInput); startTyping(); });
+        messageInput.addEventListener('input', () => { autoResizeTextarea(messageInput); onTyping(true); });
         messageInput.addEventListener('keypress', (e) => { if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); sendMessage(); } });
-        document.getElementById('settingsBtn').onclick = () => document.getElementById('settingsModal').style.display = 'flex';
-        document.getElementById('closeSettingsBtn').onclick = () => document.getElementById('settingsModal').style.display = 'none';
-        document.getElementById('changeNickBtn').onclick = () => document.getElementById('changeNickModal').style.display = 'flex';
-        document.getElementById('changePinBtn').onclick = () => document.getElementById('changePinModal').style.display = 'flex';
+        
+        // Настройки модалки
+        const settingsModal = document.getElementById('settingsModal');
+        document.getElementById('openSettingsBtn').onclick = () => settingsModal.style.display = 'flex';
+        document.getElementById('closeSettingsBtn').onclick = () => settingsModal.style.display = 'none';
+        
+        document.getElementById('changeNickBtn').onclick = () => {
+            settingsModal.style.display = 'none';
+            document.getElementById('changeNickModal').style.display = 'flex';
+        };
+        document.getElementById('changePinBtn').onclick = () => {
+            settingsModal.style.display = 'none';
+            document.getElementById('changePinModal').style.display = 'flex';
+        };
         document.getElementById('applyNickBtn').onclick = async () => { const nn = document.getElementById('newNickInput').value.trim(); if(nn) await changeNick(nn); document.getElementById('changeNickModal').style.display = 'none'; document.getElementById('newNickInput').value = ''; };
         document.getElementById('cancelNickBtn').onclick = () => document.getElementById('changeNickModal').style.display = 'none';
         document.getElementById('applyPinBtn').onclick = async () => { const old=document.getElementById('oldPinInput').value, newP=document.getElementById('newPinInput').value; if(old&&newP&&newP.length===4&&/^\d+$/.test(newP)){ await changePin(old,newP); document.getElementById('changePinModal').style.display='none'; document.getElementById('oldPinInput').value=''; document.getElementById('newPinInput').value=''; } else alert('PIN должен быть 4 цифры'); };
@@ -1237,6 +1336,13 @@
             window.isUserScrolling = true;
             clearTimeout(window.scrollTimeout);
             window.scrollTimeout = setTimeout(() => { window.isUserScrolling = false; }, 200);
+        });
+        
+        // При возвращении на вкладку обновляем сообщения
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) {
+                loadMessages();
+            }
         });
     };
 </script>
