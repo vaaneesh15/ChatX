@@ -20,12 +20,11 @@ const pool = new Pool({
 });
 
 async function initDB() {
+  // Пользователи
   await pool.query(`
     CREATE TABLE IF NOT EXISTS users (
       id SERIAL PRIMARY KEY,
-      nick VARCHAR(50) NOT NULL,
-      tag VARCHAR(4) NOT NULL,
-      full_nick VARCHAR(55) UNIQUE NOT NULL,
+      nick VARCHAR(50) UNIQUE NOT NULL,
       pin_hash TEXT NOT NULL,
       token TEXT UNIQUE,
       badge VARCHAR(10) DEFAULT '',
@@ -33,6 +32,22 @@ async function initDB() {
     );
   `);
 
+  // Добавляем колонку badge, если её нет (миграция)
+  try {
+    await pool.query(`ALTER TABLE users ADD COLUMN badge VARCHAR(10) DEFAULT ''`);
+  } catch (e) {
+    if (e.code !== '42701') console.log('Колонка badge уже существует');
+  }
+
+  // Удаляем колонки tag и full_nick, если они есть (миграция)
+  try {
+    await pool.query(`ALTER TABLE users DROP COLUMN tag`);
+  } catch (e) {}
+  try {
+    await pool.query(`ALTER TABLE users DROP COLUMN full_nick`);
+  } catch (e) {}
+
+  // Чаты
   await pool.query(`
     CREATE TABLE IF NOT EXISTS chats (
       id SERIAL PRIMARY KEY,
@@ -41,19 +56,21 @@ async function initDB() {
     );
   `);
 
+  // Участники чатов
   await pool.query(`
     CREATE TABLE IF NOT EXISTS chat_participants (
       chat_id INTEGER REFERENCES chats(id) ON DELETE CASCADE,
-      full_nick VARCHAR(55) REFERENCES users(full_nick) ON DELETE CASCADE,
-      PRIMARY KEY (chat_id, full_nick)
+      nick VARCHAR(50) REFERENCES users(nick) ON DELETE CASCADE,
+      PRIMARY KEY (chat_id, nick)
     );
   `);
 
+  // Сообщения
   await pool.query(`
     CREATE TABLE IF NOT EXISTS messages (
       id SERIAL PRIMARY KEY,
       chat_id INTEGER NOT NULL REFERENCES chats(id) ON DELETE CASCADE,
-      full_nick VARCHAR(55) NOT NULL,
+      nick VARCHAR(50) NOT NULL,
       text TEXT NOT NULL,
       reply_to_id INTEGER DEFAULT NULL,
       edited BOOLEAN DEFAULT FALSE,
@@ -61,36 +78,38 @@ async function initDB() {
     );
   `);
 
+  // Реакции
   await pool.query(`
     CREATE TABLE IF NOT EXISTS message_reactions (
       id SERIAL PRIMARY KEY,
       message_id INTEGER NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
-      full_nick VARCHAR(55) NOT NULL,
+      nick VARCHAR(50) NOT NULL,
       reaction VARCHAR(10) NOT NULL,
       created_at TIMESTAMP DEFAULT NOW(),
-      UNIQUE(message_id, full_nick, reaction)
+      UNIQUE(message_id, nick, reaction)
     );
   `);
 
+  // Контакты (бывшие друзья, упрощённые)
   await pool.query(`
-    CREATE TABLE IF NOT EXISTS friendships (
-      id SERIAL PRIMARY KEY,
-      user_full_nick VARCHAR(55) NOT NULL REFERENCES users(full_nick) ON DELETE CASCADE,
-      friend_full_nick VARCHAR(55) NOT NULL REFERENCES users(full_nick) ON DELETE CASCADE,
-      status VARCHAR(20) NOT NULL CHECK (status IN ('pending', 'accepted')),
+    CREATE TABLE IF NOT EXISTS contacts (
+      user_nick VARCHAR(50) NOT NULL REFERENCES users(nick) ON DELETE CASCADE,
+      contact_nick VARCHAR(50) NOT NULL REFERENCES users(nick) ON DELETE CASCADE,
       created_at TIMESTAMP DEFAULT NOW(),
-      UNIQUE(user_full_nick, friend_full_nick)
+      PRIMARY KEY (user_nick, contact_nick)
     );
   `);
 
+  // Удалённые чаты
   await pool.query(`
     CREATE TABLE IF NOT EXISTS deleted_chats (
       chat_id INTEGER REFERENCES chats(id) ON DELETE CASCADE,
-      full_nick VARCHAR(55) REFERENCES users(full_nick) ON DELETE CASCADE,
-      PRIMARY KEY (chat_id, full_nick)
+      nick VARCHAR(50) REFERENCES users(nick) ON DELETE CASCADE,
+      PRIMARY KEY (chat_id, nick)
     );
   `);
 
+  // Публичный чат
   const publicChat = await pool.query(`SELECT id FROM chats WHERE type = 'public'`);
   if (publicChat.rows.length === 0) {
     await pool.query(`INSERT INTO chats (type) VALUES ('public')`);
@@ -100,24 +119,12 @@ async function initDB() {
 }
 initDB();
 
-function generateTag() {
-  return '#' + Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-}
-
-async function isFullNickUnique(fullNick) {
-  const res = await pool.query('SELECT id FROM users WHERE full_nick = $1', [fullNick]);
-  return res.rows.length === 0;
-}
-
-async function getOrCreateNotebook(fullNick) {
-  const userExists = await pool.query('SELECT 1 FROM users WHERE full_nick = $1', [fullNick]);
-  if (userExists.rows.length === 0) return null;
-
+async function getOrCreateNotebook(nick) {
   let notebook = await pool.query(
     `SELECT c.id FROM chats c
      JOIN chat_participants cp ON cp.chat_id = c.id
-     WHERE c.type = 'notebook' AND cp.full_nick = $1`,
-    [fullNick]
+     WHERE c.type = 'notebook' AND cp.nick = $1`,
+    [nick]
   );
   if (notebook.rows.length === 0) {
     const newChat = await pool.query(
@@ -125,8 +132,8 @@ async function getOrCreateNotebook(fullNick) {
     );
     const chatId = newChat.rows[0].id;
     await pool.query(
-      `INSERT INTO chat_participants (chat_id, full_nick) VALUES ($1, $2)`,
-      [chatId, fullNick]
+      `INSERT INTO chat_participants (chat_id, nick) VALUES ($1, $2)`,
+      [chatId, nick]
     );
     return chatId;
   }
@@ -140,37 +147,29 @@ app.post('/auth', async (req, res) => {
     return res.status(400).json({ success: false, error: 'Неверный ник или PIN (4 цифры)' });
   }
   const cleanNick = nick.trim();
-  const existing = await pool.query('SELECT id, full_nick, pin_hash, badge FROM users WHERE nick = $1', [cleanNick]);
+  const existing = await pool.query('SELECT nick, pin_hash, badge FROM users WHERE nick = $1', [cleanNick]);
   if (existing.rows.length > 0) {
     const valid = await bcrypt.compare(pin, existing.rows[0].pin_hash);
     if (!valid) return res.json({ success: false, error: 'Неверный PIN' });
     const token = uuidv4();
-    await pool.query('UPDATE users SET token = $1 WHERE id = $2', [token, existing.rows[0].id]);
-    return res.json({ success: true, full_nick: existing.rows[0].full_nick, badge: existing.rows[0].badge || '', token });
+    await pool.query('UPDATE users SET token = $1 WHERE nick = $2', [token, cleanNick]);
+    return res.json({ success: true, nick: cleanNick, badge: existing.rows[0].badge || '', token });
   } else {
-    let tag, full_nick, unique = false, attempts = 0;
-    while (!unique && attempts < 20) {
-      tag = generateTag();
-      full_nick = `${cleanNick}${tag}`;
-      unique = await isFullNickUnique(full_nick);
-      attempts++;
-    }
-    if (!unique) return res.status(500).json({ success: false, error: 'Ошибка генерации тега' });
     const pinHash = await bcrypt.hash(pin, 10);
     const token = uuidv4();
     await pool.query(
-      'INSERT INTO users (nick, tag, full_nick, pin_hash, token, badge) VALUES ($1, $2, $3, $4, $5, $6)',
-      [cleanNick, tag, full_nick, pinHash, token, '']
+      'INSERT INTO users (nick, pin_hash, token, badge) VALUES ($1, $2, $3, $4)',
+      [cleanNick, pinHash, token, '']
     );
-    return res.json({ success: true, full_nick, badge: '', token });
+    return res.json({ success: true, nick: cleanNick, badge: '', token });
   }
 });
 
 app.post('/verify', async (req, res) => {
   const { token } = req.body;
   if (!token) return res.json({ success: false });
-  const user = await pool.query('SELECT full_nick, badge FROM users WHERE token = $1', [token]);
-  if (user.rows.length > 0) res.json({ success: true, full_nick: user.rows[0].full_nick, badge: user.rows[0].badge || '' });
+  const user = await pool.query('SELECT nick, badge FROM users WHERE token = $1', [token]);
+  if (user.rows.length > 0) res.json({ success: true, nick: user.rows[0].nick, badge: user.rows[0].badge || '' });
   else res.json({ success: false });
 });
 
@@ -179,24 +178,21 @@ app.post('/change-nick', async (req, res) => {
   if (!token || !newNick || newNick.trim() === '') {
     return res.status(400).json({ success: false, error: 'Данные неполные' });
   }
-  const user = await pool.query('SELECT full_nick, nick FROM users WHERE token = $1', [token]);
+  const user = await pool.query('SELECT nick FROM users WHERE token = $1', [token]);
   if (user.rows.length === 0) return res.json({ success: false, error: 'Сессия недействительна' });
-  const oldFullNick = user.rows[0].full_nick;
   const oldNick = user.rows[0].nick;
-  if (newNick === oldNick) return res.json({ success: true, newFullNick: oldFullNick });
-  const tag = oldFullNick.substring(oldNick.length);
-  const newFullNick = `${newNick}${tag}`;
-  const existing = await pool.query('SELECT id FROM users WHERE full_nick = $1', [newFullNick]);
+  if (newNick === oldNick) return res.json({ success: true, newNick: oldNick });
+  const existing = await pool.query('SELECT nick FROM users WHERE nick = $1', [newNick]);
   if (existing.rows.length > 0) {
     return res.json({ success: false, error: 'Ник уже существует' });
   }
-  await pool.query('UPDATE users SET nick = $1, full_nick = $2 WHERE token = $3', [newNick, newFullNick, token]);
-  await pool.query('UPDATE messages SET full_nick = $1 WHERE full_nick = $2', [newFullNick, oldFullNick]);
-  await pool.query('UPDATE message_reactions SET full_nick = $1 WHERE full_nick = $2', [newFullNick, oldFullNick]);
-  await pool.query('UPDATE friendships SET user_full_nick = $1 WHERE user_full_nick = $2', [newFullNick, oldFullNick]);
-  await pool.query('UPDATE friendships SET friend_full_nick = $1 WHERE friend_full_nick = $2', [newFullNick, oldFullNick]);
-  io.emit('nick changed', { oldFullNick, newFullNick });
-  res.json({ success: true, newFullNick });
+  await pool.query('UPDATE users SET nick = $1 WHERE token = $2', [newNick, token]);
+  await pool.query('UPDATE messages SET nick = $1 WHERE nick = $2', [newNick, oldNick]);
+  await pool.query('UPDATE message_reactions SET nick = $1 WHERE nick = $2', [newNick, oldNick]);
+  await pool.query('UPDATE contacts SET user_nick = $1 WHERE user_nick = $2', [newNick, oldNick]);
+  await pool.query('UPDATE contacts SET contact_nick = $1 WHERE contact_nick = $2', [newNick, oldNick]);
+  io.emit('nick changed', { oldNick, newNick });
+  res.json({ success: true, newNick });
 });
 
 app.post('/change-pin', async (req, res) => {
@@ -223,126 +219,91 @@ app.post('/update-badge', async (req, res) => {
 app.delete('/delete-account', async (req, res) => {
   const { token, pin } = req.body;
   if (!token || !pin) return res.status(400).json({ success: false, error: 'Требуется PIN' });
-  const user = await pool.query('SELECT full_nick, pin_hash FROM users WHERE token = $1', [token]);
+  const user = await pool.query('SELECT nick, pin_hash FROM users WHERE token = $1', [token]);
   if (user.rows.length === 0) return res.json({ success: false, error: 'Сессия недействительна' });
   const valid = await bcrypt.compare(pin, user.rows[0].pin_hash);
   if (!valid) return res.json({ success: false, error: 'Неверный PIN' });
-  await pool.query('DELETE FROM users WHERE full_nick = $1', [user.rows[0].full_nick]);
+  await pool.query('DELETE FROM users WHERE nick = $1', [user.rows[0].nick]);
   res.json({ success: true });
 });
 
-// Друзья
-app.get('/friends', async (req, res) => {
-  const { full_nick, filter } = req.query;
-  if (!full_nick) return res.json([]);
-  let query;
-  if (filter === 'accepted') {
-    query = `
-      SELECT u.full_nick, u.nick, u.tag, u.badge
-      FROM friendships f
-      JOIN users u ON (f.user_full_nick = u.full_nick OR f.friend_full_nick = u.full_nick)
-      WHERE (f.user_full_nick = $1 OR f.friend_full_nick = $1)
-        AND f.status = 'accepted'
-        AND u.full_nick != $1
-    `;
-  } else if (filter === 'pending_incoming') {
-    query = `
-      SELECT u.full_nick, u.nick, u.tag, u.badge
-      FROM friendships f
-      JOIN users u ON f.user_full_nick = u.full_nick
-      WHERE f.friend_full_nick = $1 AND f.status = 'pending'
-    `;
-  } else if (filter === 'pending_outgoing') {
-    query = `
-      SELECT u.full_nick, u.nick, u.tag, u.badge
-      FROM friendships f
-      JOIN users u ON f.friend_full_nick = u.full_nick
-      WHERE f.user_full_nick = $1 AND f.status = 'pending'
-    `;
-  } else {
-    return res.json([]);
-  }
-  const result = await pool.query(query, [full_nick]);
+// Контакты
+app.get('/contacts', async (req, res) => {
+  const { nick } = req.query;
+  if (!nick) return res.json([]);
+  const result = await pool.query(
+    `SELECT u.nick, u.badge FROM contacts c
+     JOIN users u ON c.contact_nick = u.nick
+     WHERE c.user_nick = $1`,
+    [nick]
+  );
   res.json(result.rows);
 });
 
-app.post('/friend-request', async (req, res) => {
-  const { from, to } = req.body;
-  if (!from || !to || from === to) return res.status(400).json({ success: false });
+app.post('/contact-add', async (req, res) => {
+  const { user, contact } = req.body;
+  if (!user || !contact || user === contact) return res.status(400).json({ success: false });
   try {
     await pool.query(
-      `INSERT INTO friendships (user_full_nick, friend_full_nick, status) VALUES ($1, $2, 'pending')`,
-      [from, to]
+      `INSERT INTO contacts (user_nick, contact_nick) VALUES ($1, $2)`,
+      [user, contact]
     );
     res.json({ success: true });
   } catch (err) {
-    if (err.code === '23505') res.json({ success: false, error: 'Запрос уже существует' });
+    if (err.code === '23505') res.json({ success: false, error: 'Уже в контактах' });
     else res.status(500).json({ success: false });
   }
 });
 
-app.post('/friend-respond', async (req, res) => {
-  const { full_nick, from, action } = req.body;
-  if (!full_nick || !from) return res.status(400).json({ success: false });
-  if (action === 'accept') {
-    await pool.query(
-      `UPDATE friendships SET status = 'accepted' WHERE user_full_nick = $1 AND friend_full_nick = $2`,
-      [from, full_nick]
-    );
-  } else {
-    await pool.query(
-      `DELETE FROM friendships WHERE user_full_nick = $1 AND friend_full_nick = $2`,
-      [from, full_nick]
-    );
-  }
+app.post('/contact-remove', async (req, res) => {
+  const { user, contact } = req.body;
+  if (!user || !contact) return res.status(400).json({ success: false });
+  await pool.query(`DELETE FROM contacts WHERE user_nick = $1 AND contact_nick = $2`, [user, contact]);
   res.json({ success: true });
 });
 
-app.get('/friendship-status', async (req, res) => {
-  const { from, to } = req.query;
-  if (!from || !to) return res.json({ status: 'none' });
+app.get('/contact-status', async (req, res) => {
+  const { user, contact } = req.query;
+  if (!user || !contact) return res.json({ inContacts: false });
   const result = await pool.query(
-    `SELECT status, user_full_nick FROM friendships WHERE (user_full_nick = $1 AND friend_full_nick = $2) OR (user_full_nick = $2 AND friend_full_nick = $1)`,
-    [from, to]
+    `SELECT 1 FROM contacts WHERE user_nick = $1 AND contact_nick = $2`,
+    [user, contact]
   );
-  if (result.rows.length === 0) return res.json({ status: 'none' });
-  const row = result.rows[0];
-  const status = row.status;
-  const isOutgoing = row.user_full_nick === from;
-  res.json({ status, isOutgoing });
+  res.json({ inContacts: result.rows.length > 0 });
 });
 
+// Поиск пользователей
 app.get('/search-users', async (req, res) => {
-  const { q, full_nick } = req.query;
-  if (!q || !full_nick) return res.json([]);
+  const { q, nick } = req.query;
+  if (!q || !nick) return res.json([]);
   const result = await pool.query(
-    `SELECT full_nick, nick, tag, badge FROM users
-     WHERE (nick ILIKE $1 OR full_nick ILIKE $1) AND full_nick != $2
+    `SELECT nick, badge FROM users
+     WHERE nick ILIKE $1 AND nick != $2
      LIMIT 20`,
-    [`%${q}%`, full_nick]
+    [`%${q}%`, nick]
   );
   res.json(result.rows);
 });
 
 // Чаты
 app.get('/chats', async (req, res) => {
-  const { full_nick } = req.query;
-  if (!full_nick) return res.json([]);
+  const { nick } = req.query;
+  if (!nick) return res.json([]);
   
   const publicChat = await pool.query(`SELECT id FROM chats WHERE type = 'public'`);
   const publicChatId = publicChat.rows[0]?.id;
   
-  const notebookId = await getOrCreateNotebook(full_nick);
+  const notebookId = await getOrCreateNotebook(nick);
   
   const privateChats = await pool.query(`
-    SELECT c.id, c.type, u.full_nick as other_full_nick, u.nick, u.tag
+    SELECT c.id, c.type, u.nick as other_nick, u.badge as other_badge
     FROM chats c
-    JOIN chat_participants cp1 ON cp1.chat_id = c.id AND cp1.full_nick = $1
-    JOIN chat_participants cp2 ON cp2.chat_id = c.id AND cp2.full_nick != $1
-    JOIN users u ON u.full_nick = cp2.full_nick
+    JOIN chat_participants cp1 ON cp1.chat_id = c.id AND cp1.nick = $1
+    JOIN chat_participants cp2 ON cp2.chat_id = c.id AND cp2.nick != $1
+    JOIN users u ON u.nick = cp2.nick
     WHERE c.type = 'private'
-      AND NOT EXISTS (SELECT 1 FROM deleted_chats dc WHERE dc.chat_id = c.id AND dc.full_nick = $1)
-  `, [full_nick]);
+      AND NOT EXISTS (SELECT 1 FROM deleted_chats dc WHERE dc.chat_id = c.id AND dc.nick = $1)
+  `, [nick]);
   
   const chats = [
     { id: publicChatId, type: 'public', name: 'Общий чат', other: null }
@@ -354,14 +315,14 @@ app.get('/chats', async (req, res) => {
     chats.push({
       id: row.id,
       type: 'private',
-      name: `${row.nick}${row.tag}`,
-      other: row.other_full_nick
+      name: row.other_nick,
+      other: row.other_nick
     });
   });
   
   for (let chat of chats) {
     const lastMsg = await pool.query(`
-      SELECT id, text, full_nick, created_at FROM messages
+      SELECT id, text, nick, created_at FROM messages
       WHERE chat_id = $1
       ORDER BY created_at DESC LIMIT 1
     `, [chat.id]);
@@ -386,44 +347,44 @@ app.post('/create-private-chat', async (req, res) => {
   if (!user1 || !user2 || user1 === user2) return res.status(400).json({ success: false });
   const existing = await pool.query(`
     SELECT c.id FROM chats c
-    JOIN chat_participants cp1 ON cp1.chat_id = c.id AND cp1.full_nick = $1
-    JOIN chat_participants cp2 ON cp2.chat_id = c.id AND cp2.full_nick = $2
+    JOIN chat_participants cp1 ON cp1.chat_id = c.id AND cp1.nick = $1
+    JOIN chat_participants cp2 ON cp2.chat_id = c.id AND cp2.nick = $2
     WHERE c.type = 'private'
   `, [user1, user2]);
   if (existing.rows.length > 0) {
     const deleted = await pool.query(
-      `SELECT 1 FROM deleted_chats WHERE chat_id = $1 AND full_nick = $2`,
+      `SELECT 1 FROM deleted_chats WHERE chat_id = $1 AND nick = $2`,
       [existing.rows[0].id, user1]
     );
     if (deleted.rows.length > 0) {
-      await pool.query(`DELETE FROM deleted_chats WHERE chat_id = $1 AND full_nick = $2`, [existing.rows[0].id, user1]);
+      await pool.query(`DELETE FROM deleted_chats WHERE chat_id = $1 AND nick = $2`, [existing.rows[0].id, user1]);
     }
     return res.json({ success: true, chatId: existing.rows[0].id });
   }
   const newChat = await pool.query(`INSERT INTO chats (type) VALUES ('private') RETURNING id`);
   const chatId = newChat.rows[0].id;
-  await pool.query(`INSERT INTO chat_participants (chat_id, full_nick) VALUES ($1, $2), ($1, $3)`, [chatId, user1, user2]);
+  await pool.query(`INSERT INTO chat_participants (chat_id, nick) VALUES ($1, $2), ($1, $3)`, [chatId, user1, user2]);
   res.json({ success: true, chatId });
 });
 
 app.post('/delete-chat', async (req, res) => {
-  const { chat_id, full_nick } = req.body;
-  if (!chat_id || !full_nick) return res.status(400).json({ success: false });
+  const { chat_id, nick } = req.body;
+  if (!chat_id || !nick) return res.status(400).json({ success: false });
   await pool.query(
-    `INSERT INTO deleted_chats (chat_id, full_nick) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
-    [chat_id, full_nick]
+    `INSERT INTO deleted_chats (chat_id, nick) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+    [chat_id, nick]
   );
   res.json({ success: true });
 });
 
 app.get('/chat-messages', async (req, res) => {
-  const { chat_id, full_nick } = req.query;
-  if (!chat_id || !full_nick) return res.json([]);
+  const { chat_id, nick } = req.query;
+  if (!chat_id || !nick) return res.json([]);
   const result = await pool.query(`
-    SELECT m.id, m.chat_id, m.full_nick, m.text, m.reply_to_id, m.edited, m.created_at,
+    SELECT m.id, m.chat_id, m.nick, m.text, m.reply_to_id, m.edited, m.created_at,
            COALESCE(r.reactions, '[]'::json) as reactions,
-           rep.full_nick as reply_nick, rep.text as reply_text,
-           (SELECT array_agg(reaction) FROM message_reactions WHERE message_id = m.id AND full_nick = $2) as user_reactions
+           rep.nick as reply_nick, rep.text as reply_text,
+           (SELECT array_agg(reaction) FROM message_reactions WHERE message_id = m.id AND nick = $2) as user_reactions
     FROM messages m
     LEFT JOIN LATERAL (
       SELECT json_agg(json_build_object('reaction', reaction, 'count', cnt)) as reactions
@@ -437,21 +398,21 @@ app.get('/chat-messages', async (req, res) => {
     LEFT JOIN messages rep ON m.reply_to_id = rep.id
     WHERE m.chat_id = $1
     ORDER BY m.created_at ASC
-  `, [chat_id, full_nick]);
+  `, [chat_id, nick]);
   res.json(result.rows);
 });
 
 app.post('/chat-message', async (req, res) => {
-  const { chat_id, full_nick, text, reply_to_id } = req.body;
-  if (!chat_id || !full_nick || !text?.trim()) return res.status(400).json({ success: false });
+  const { chat_id, nick, text, reply_to_id } = req.body;
+  if (!chat_id || !nick || !text?.trim()) return res.status(400).json({ success: false });
   const result = await pool.query(
-    'INSERT INTO messages (chat_id, full_nick, text, reply_to_id) VALUES ($1, $2, $3, $4) RETURNING id, created_at',
-    [chat_id, full_nick, text.trim(), reply_to_id || null]
+    'INSERT INTO messages (chat_id, nick, text, reply_to_id) VALUES ($1, $2, $3, $4) RETURNING id, created_at',
+    [chat_id, nick, text.trim(), reply_to_id || null]
   );
   const newMsg = {
     id: result.rows[0].id,
     chat_id,
-    full_nick,
+    nick,
     text: text.trim(),
     reply_to_id: reply_to_id || null,
     edited: false,
@@ -460,9 +421,9 @@ app.post('/chat-message', async (req, res) => {
     user_reactions: []
   };
   if (reply_to_id) {
-    const replyMsg = await pool.query('SELECT full_nick, text FROM messages WHERE id = $1', [reply_to_id]);
+    const replyMsg = await pool.query('SELECT nick, text FROM messages WHERE id = $1', [reply_to_id]);
     if (replyMsg.rows.length) {
-      newMsg.reply_nick = replyMsg.rows[0].full_nick;
+      newMsg.reply_nick = replyMsg.rows[0].nick;
       newMsg.reply_text = replyMsg.rows[0].text;
     }
   }
@@ -471,13 +432,13 @@ app.post('/chat-message', async (req, res) => {
 });
 
 app.post('/add-reaction', async (req, res) => {
-  const { messageId, full_nick, reaction, isRoom } = req.body;
+  const { messageId, nick, reaction, isRoom } = req.body;
   if (isRoom) return res.status(400).json({ success: false });
-  if (!messageId || !full_nick || !reaction) return res.status(400).json({ success: false });
+  if (!messageId || !nick || !reaction) return res.status(400).json({ success: false });
   try {
     await pool.query(
-      `INSERT INTO message_reactions (message_id, full_nick, reaction) VALUES ($1, $2, $3)`,
-      [messageId, full_nick, reaction]
+      `INSERT INTO message_reactions (message_id, nick, reaction) VALUES ($1, $2, $3)`,
+      [messageId, nick, reaction]
     );
     const reactionsRes = await pool.query(
       `SELECT reaction, COUNT(*) as count FROM message_reactions WHERE message_id = $1 GROUP BY reaction`,
@@ -492,8 +453,8 @@ app.post('/add-reaction', async (req, res) => {
   } catch (err) {
     if (err.code === '23505') {
       await pool.query(
-        `DELETE FROM message_reactions WHERE message_id = $1 AND full_nick = $2 AND reaction = $3`,
-        [messageId, full_nick, reaction]
+        `DELETE FROM message_reactions WHERE message_id = $1 AND nick = $2 AND reaction = $3`,
+        [messageId, nick, reaction]
       );
       const reactionsRes = await pool.query(
         `SELECT reaction, COUNT(*) as count FROM message_reactions WHERE message_id = $1 GROUP BY reaction`,
@@ -512,11 +473,11 @@ app.post('/add-reaction', async (req, res) => {
 });
 
 app.post('/delete-message', async (req, res) => {
-  const { full_nick, messageId } = req.body;
-  if (!full_nick || !messageId) return res.status(400).json({ success: false });
-  const msg = await pool.query('SELECT full_nick, chat_id FROM messages WHERE id = $1', [messageId]);
+  const { nick, messageId } = req.body;
+  if (!nick || !messageId) return res.status(400).json({ success: false });
+  const msg = await pool.query('SELECT nick, chat_id FROM messages WHERE id = $1', [messageId]);
   if (msg.rows.length === 0) return res.json({ success: false });
-  if (msg.rows[0].full_nick !== full_nick) return res.json({ success: false });
+  if (msg.rows[0].nick !== nick) return res.json({ success: false });
   const result = await pool.query('DELETE FROM messages WHERE id = $1 RETURNING id, chat_id', [messageId]);
   if (result.rowCount > 0) {
     io.to(`chat:${result.rows[0].chat_id}`).emit('message deleted', messageId);
@@ -527,11 +488,11 @@ app.post('/delete-message', async (req, res) => {
 });
 
 app.post('/edit-message', async (req, res) => {
-  const { messageId, full_nick, newText } = req.body;
-  if (!messageId || !full_nick || !newText?.trim()) return res.status(400).json({ success: false });
+  const { messageId, nick, newText } = req.body;
+  if (!messageId || !nick || !newText?.trim()) return res.status(400).json({ success: false });
   const result = await pool.query(
-    'UPDATE messages SET text = $1, edited = TRUE WHERE id = $2 AND full_nick = $3 RETURNING id, chat_id',
-    [newText.trim(), messageId, full_nick]
+    'UPDATE messages SET text = $1, edited = TRUE WHERE id = $2 AND nick = $3 RETURNING id, chat_id',
+    [newText.trim(), messageId, nick]
   );
   if (result.rowCount > 0) {
     io.to(`chat:${result.rows[0].chat_id}`).emit('message edited', { messageId, newText: newText.trim() });
@@ -542,43 +503,43 @@ app.post('/edit-message', async (req, res) => {
 });
 
 // Онлайн статус и присутствие в чатах
-const onlineUsers = new Map(); // full_nick -> Set<socket.id>
+const onlineUsers = new Map();
 
 io.on('connection', (socket) => {
-  let currentFullNick = null;
+  let currentNick = null;
 
-  socket.on('user online', async (full_nick) => {
-    currentFullNick = full_nick;
-    if (!onlineUsers.has(full_nick)) onlineUsers.set(full_nick, new Set());
-    onlineUsers.get(full_nick).add(socket.id);
-    io.emit('online status', { full_nick, online: true });
+  socket.on('user online', async (nick) => {
+    currentNick = nick;
+    if (!onlineUsers.has(nick)) onlineUsers.set(nick, new Set());
+    onlineUsers.get(nick).add(socket.id);
+    io.emit('online status', { nick, online: true });
     
     const chats = await pool.query(`
       SELECT c.id FROM chats c
       JOIN chat_participants cp ON cp.chat_id = c.id
-      WHERE cp.full_nick = $1
+      WHERE cp.nick = $1
       UNION
       SELECT id FROM chats WHERE type = 'public'
-    `, [full_nick]);
+    `, [nick]);
     chats.rows.forEach(row => socket.join(`chat:${row.id}`));
   });
 
   socket.on('join chat', (chatId) => {
     socket.join(`chat:${chatId}`);
-    if (currentFullNick) {
-      io.to(`chat:${chatId}`).emit('user joined chat', { chatId, full_nick: currentFullNick });
+    if (currentNick) {
+      io.to(`chat:${chatId}`).emit('user joined chat', { chatId, nick: currentNick });
     }
   });
 
   socket.on('leave chat', (chatId) => {
     socket.leave(`chat:${chatId}`);
-    if (currentFullNick) {
-      io.to(`chat:${chatId}`).emit('user left chat', { chatId, full_nick: currentFullNick });
+    if (currentNick) {
+      io.to(`chat:${chatId}`).emit('user left chat', { chatId, nick: currentNick });
     }
   });
 
-  socket.on('typing', ({ chatId, full_nick }) => {
-    socket.to(`chat:${chatId}`).emit('user typing', { chatId, full_nick });
+  socket.on('typing', ({ chatId, nick }) => {
+    socket.to(`chat:${chatId}`).emit('user typing', { chatId, nick });
   });
 
   socket.on('stop typing', ({ chatId }) => {
@@ -586,13 +547,13 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
-    if (currentFullNick) {
-      const sockets = onlineUsers.get(currentFullNick);
+    if (currentNick) {
+      const sockets = onlineUsers.get(currentNick);
       if (sockets) {
         sockets.delete(socket.id);
         if (sockets.size === 0) {
-          onlineUsers.delete(currentFullNick);
-          io.emit('online status', { full_nick: currentFullNick, online: false });
+          onlineUsers.delete(currentNick);
+          io.emit('online status', { nick: currentNick, online: false });
         }
       }
     }
