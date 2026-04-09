@@ -142,6 +142,9 @@
             right: 0;
             z-index: 100;
         }
+        .nav-bar.hidden {
+            display: none;
+        }
         .nav-item {
             flex: 1;
             display: flex;
@@ -172,7 +175,13 @@
             display: none;
             flex-direction: column;
             height: 100%;
-            position: relative;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: var(--bg-page);
+            z-index: 50;
         }
         .chat-header {
             display: flex;
@@ -181,14 +190,20 @@
             background: var(--input-bg);
             border-bottom: 1px solid var(--border-light);
         }
-        .chat-header .back-btn {
-            background: none;
+        .back-btn {
+            background: var(--bg-page);
             border: none;
             color: var(--accent-color);
-            font-size: 1.2rem;
-            padding: 0.5rem;
-            margin-right: 0.5rem;
+            font-size: 1.5rem;
+            width: 2.5rem;
+            height: 2.5rem;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 0.8rem;
             cursor: pointer;
+            border: 0.5px solid var(--border-light);
         }
         .chat-header-info {
             flex: 1;
@@ -369,26 +384,6 @@
             gap: 14px;
             align-items: center;
             padding: 1rem 1rem;
-        }
-        .settings-icon {
-            background: none;
-            border: none;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: var(--text-secondary);
-            padding: 0;
-            width: 2.2rem;
-            height: 2.2rem;
-            flex-shrink: 0;
-        }
-        .settings-icon svg {
-            width: 1.5rem;
-            height: 1.5rem;
-            stroke: currentColor;
-            stroke-width: 1.5;
-            fill: none;
         }
         .input-row textarea {
             flex:1; background:transparent; border:none; padding:0.8rem 0; font-size:1rem;
@@ -696,6 +691,15 @@
             font-size: 1rem;
             margin-bottom: 1rem;
         }
+
+        /* Исправление отступа в настройках стиля */
+        .fullscreen .setting-row {
+            padding-left: 0;
+            padding-right: 0;
+        }
+        .fullscreen .switch {
+            margin-right: 0;
+        }
     </style>
 </head>
 <body>
@@ -778,7 +782,7 @@
     </div>
 
     <!-- Нижняя навигация -->
-    <div class="nav-bar">
+    <div class="nav-bar" id="mainNavBar">
         <button class="nav-item" data-tab="friends">
             <svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
             <span>Друзья</span>
@@ -788,8 +792,12 @@
             <span>Чаты</span>
         </button>
         <button class="nav-item" data-tab="profile">
-            <svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
-            <span>Профиль</span>
+            <!-- Иконка настроек вместо профиля -->
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="3"></circle>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            </svg>
+            <span>Настройки</span>
         </button>
     </div>
 </div>
@@ -809,6 +817,7 @@
 <div id="changePinModal" class="modal"><div class="modal-content"><h3>Смена PIN</h3><div class="modal-setting"><label>Старый PIN</label><input type="password" id="oldPinInput" placeholder="Старый PIN" maxlength="4"></div><div class="modal-setting"><label>Новый PIN</label><input type="password" id="newPinInput" placeholder="Новый PIN" maxlength="4"></div><div class="modal-buttons"><button id="cancelPinBtn">Отмена</button><button id="applyPinBtn">Применить</button></div></div></div>
 
 <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
+<!-- Конец HTML, начало JavaScript -->
 <script>
     (function() {
         function addTapped(e) { const t = e.target.closest('button, .clickable'); if(t) t.classList.add('tapped'); }
@@ -840,7 +849,8 @@
     let replyingTo = null;
     let typingTimeout = null;
     let refreshInterval = null;
-    let pendingAction = null; // для подтверждений
+    let pendingAction = null;
+    const onlineUsers = new Set();
 
     // --- Вспомогательные функции ---
     function escapeHtml(str) { return str.replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'})[m]); }
@@ -888,6 +898,7 @@
 
     function closeChatView() {
         document.getElementById('chatView').style.display = 'none';
+        document.getElementById('mainNavBar').classList.remove('hidden');
         if (currentChat.id) {
             socket.emit('leave chat', currentChat.id);
             currentChat = { id: null, type: null, other: null, name: '' };
@@ -916,13 +927,16 @@
                 const prefix = isOwn ? 'Вы: ' : (chat.type==='private' ? '' : splitFullNick(chat.last_message.full_nick).nick+': ');
                 preview = prefix + (chat.last_message.text.length > 30 ? chat.last_message.text.substring(0,30)+'…' : chat.last_message.text);
             }
-            html += `<div class="chat-item clickable" data-chat-id="${chat.id}" data-chat-type="${chat.type}" data-other="${chat.other||''}" data-name="${chat.name}">
+            html += `<div class="chat-item clickable" data-chat-id="${chat.id}" data-chat-type="${chat.type}" data-other="${chat.other||''}" data-name="${escapeHtml(chat.name)}">
                 <div class="chat-info">
                     <div class="friend-name">${escapeHtml(chat.name)}</div>
                     <div class="chat-preview">${escapeHtml(preview)}</div>
-                </div>
-                <button class="chat-menu-btn" data-chat-id="${chat.id}">⋮</button>
-            </div>`;
+                </div>`;
+            // Кнопка меню только для приватных чатов
+            if (chat.type === 'private') {
+                html += `<button class="chat-menu-btn" data-chat-id="${chat.id}">⋮</button>`;
+            }
+            html += `</div>`;
         });
         container.innerHTML = html || '<div style="color:var(--text-secondary); text-align:center;">Нет чатов</div>';
         document.querySelectorAll('.chat-item').forEach(el => {
@@ -950,6 +964,7 @@
         currentChat = chat;
         document.getElementById('chatsPanel').style.display = 'none';
         document.getElementById('chatView').style.display = 'flex';
+        document.getElementById('mainNavBar').classList.add('hidden');
         document.getElementById('chatTitle').innerText = chat.name;
         document.getElementById('chatStatus').innerText = (chat.type === 'public' || chat.type === 'notebook') ? '' : 'загрузка...';
         if (chat.type === 'private' && chat.other) {
@@ -1069,17 +1084,7 @@
         alert(data.success ? 'Запрос отправлен' : (data.error || 'Ошибка'));
     }
 
-    // --- Онлайн статус ---
-    const onlineUsers = new Set();
-    socket?.on('online status', ({ full_nick, online }) => {
-        if (online) onlineUsers.add(full_nick);
-        else onlineUsers.delete(full_nick);
-        if (currentChat.type === 'private' && currentChat.other === full_nick) {
-            updateChatStatus(full_nick);
-        }
-    });
-
-    // --- Рендер сообщений (адаптирован) ---
+    // --- Рендер сообщений ---
     function renderMessages() {
         const container = document.getElementById('messagesContainer');
         if (!container) return;
@@ -1130,8 +1135,6 @@
         if (wasNearBottom && !window.isUserScrolling) container.scrollTop = container.scrollHeight;
         attachReactionEvents();
     }
-
-        // --- Продолжение: функции реакций, контекстного меню, отправки сообщений ---
 
     function attachReactionEvents() {
         if (appSettings.showReactions === false) return;
@@ -1255,8 +1258,8 @@
         document.getElementById('contextMessagePreview').innerHTML = linkify(escapeHtml(text.substring(0, 150))) + (text.length>150?'…':'');
         const container = document.getElementById('contextMenuButtons');
         let html = '';
-        if (showReactions) html += `<button id="ctx-react"><svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg> Реакция</button>`;
-        html += `<button id="ctx-reply"><svg viewBox="0 0 24 24"><path d="M3 10h10a8 8 0 0 1 8 8v2M3 10l6 6M3 10l6-6"/></svg> Ответить</button>`;
+        if (showReactions) html += `<button id="ctx-react"><svg viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" fill="#ff375f"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg> Реакция</button>`;
+        html += `<button id="ctx-reply"><svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M3 10h10a8 8 0 0 1 8 8v2M3 10l6 6M3 10l6-6"/></svg> Ответить</button>`;
         if (isOwn) html += `<button id="ctx-edit"><svg viewBox="0 0 24 24"><path d="M17 3l4 4-7 7H10v-4l7-7z"/><path d="M4 20h16"/></svg> Редактировать</button>`;
         html += `<button id="ctx-copy"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Скопировать</button>`;
         if (isOwn) html += `<button id="ctx-delete"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg> Удалить</button>`;
@@ -1388,9 +1391,8 @@
         textarea.style.height = Math.min(textarea.scrollHeight, 150) + 'px';
     }
 
-    // --- Инициализация сокетов и событий после входа ---
+    // --- Инициализация сокетов и событий ---
     async function initializeApp() {
-        // Загрузка настроек
         document.getElementById('showDateToggle').checked = appSettings.showDate;
         document.getElementById('showReactionsToggle').checked = appSettings.showReactions;
         document.getElementById('notificationsToggle').checked = appSettings.notifications;
@@ -1410,17 +1412,15 @@
             localStorage.setItem('simply_settings', JSON.stringify(appSettings));
         };
 
-        // Загрузка чатов и друзей
         await loadChatsList();
         await loadFriends();
 
-        // Сокет-события
         socket.on('chat message received', (newMsg) => {
             if (currentChat.id === newMsg.chat_id) {
                 messages.push(newMsg);
                 renderMessages();
             }
-            loadChatsList(); // обновить превью
+            loadChatsList();
         });
 
         socket.on('message deleted', (msgId) => {
@@ -1464,15 +1464,13 @@
             loadChatsList();
         });
 
-        // Периодическое обновление (опционально)
         refreshInterval = setInterval(() => {
             if (currentChat.id) loadChatMessages().then(renderMessages);
         }, 5000);
     }
 
-    // --- Функции для модалок профиля ---
+    // --- Настройка модалок ---
     function setupProfileModals() {
-        // Самовыражение
         document.getElementById('openSelfExpressionBtn').onclick = () => {
             document.getElementById('selfExpressionModal').style.display = 'flex';
         };
@@ -1496,7 +1494,6 @@
             } else alert(data.error);
         };
 
-        // Уведы
         document.getElementById('openNotifSettingsBtn').onclick = () => {
             document.getElementById('notifSettingsModal').style.display = 'flex';
         };
@@ -1504,7 +1501,6 @@
             document.getElementById('notifSettingsModal').style.display = 'none';
         };
 
-        // Приватность
         document.getElementById('openPrivacySettingsBtn').onclick = () => {
             document.getElementById('privacySettingsModal').style.display = 'flex';
         };
@@ -1526,7 +1522,6 @@
             document.getElementById('pinConfirmInput').value = '';
         };
 
-        // Стиль
         document.getElementById('openStyleSettingsBtn').onclick = () => {
             document.getElementById('styleSettingsModal').style.display = 'flex';
         };
@@ -1534,7 +1529,6 @@
             document.getElementById('styleSettingsModal').style.display = 'none';
         };
 
-        // Смена PIN
         document.getElementById('applyPinBtn').onclick = async () => {
             const old = document.getElementById('oldPinInput').value;
             const newP = document.getElementById('newPinInput').value;
@@ -1580,7 +1574,6 @@
         pendingAction = null;
     };
 
-    // PIN подтверждение для удаления аккаунта
     document.getElementById('pinConfirmOkBtn').onclick = async () => {
         const pin = document.getElementById('pinConfirmInput').value;
         if (!pin) return;
@@ -1602,19 +1595,16 @@
         document.getElementById('pinConfirmModal').style.display = 'none';
     };
 
-    // Закрытие пикера реакций
     document.getElementById('closeReactionPickerBtn').onclick = () => {
         document.getElementById('reactionPickerModal').style.display = 'none';
     };
 
-    // --- Обработчики UI ---
+    // --- Привязка UI ---
     function bindUI() {
-        // Навигация
         document.querySelectorAll('.nav-item').forEach(btn => {
             btn.onclick = () => showTab(btn.dataset.tab);
         });
 
-        // Сегмент друзей
         document.querySelectorAll('.segment-btn').forEach(btn => {
             btn.onclick = () => {
                 document.querySelectorAll('.segment-btn').forEach(b => b.classList.remove('active'));
@@ -1624,20 +1614,17 @@
             };
         });
 
-        // Поиск друзей
         document.getElementById('friendsSearchInput').oninput = (e) => {
             friendsSearchQuery = e.target.value;
             renderFriendsList();
         };
 
-        // Поиск чатов / пользователей
         document.getElementById('chatSearchInput').oninput = (e) => {
             chatSearchQuery = e.target.value;
             renderChatsList();
             searchUsers(e.target.value);
         };
 
-        // Кнопка "Подружиться"
         document.getElementById('addFriendBtn').onclick = () => {
             document.getElementById('addFriendModal').style.display = 'flex';
             document.getElementById('friendFullNickInput').value = '';
@@ -1652,10 +1639,8 @@
             document.getElementById('addFriendModal').style.display = 'none';
         };
 
-        // Назад из чата
         document.getElementById('backFromChatBtn').onclick = closeChatView;
 
-        // Отправка сообщения
         document.getElementById('sendBtn').onclick = sendMessage;
         const msgInput = document.getElementById('messageInput');
         msgInput.addEventListener('input', () => {
@@ -1669,7 +1654,6 @@
             }
         });
 
-        // Прокрутка
         window.isUserScrolling = false;
         document.getElementById('messagesContainer')?.addEventListener('scroll', () => {
             window.isUserScrolling = true;
