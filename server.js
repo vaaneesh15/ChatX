@@ -20,7 +20,6 @@ const pool = new Pool({
 });
 
 async function initDB() {
-  // Пользователи
   await pool.query(`
     CREATE TABLE IF NOT EXISTS users (
       id SERIAL PRIMARY KEY,
@@ -33,7 +32,6 @@ async function initDB() {
     );
   `);
 
-  // Чаты (общий, личные, блокноты)
   await pool.query(`
     CREATE TABLE IF NOT EXISTS chats (
       id SERIAL PRIMARY KEY,
@@ -42,7 +40,6 @@ async function initDB() {
     );
   `);
 
-  // Участники чатов
   await pool.query(`
     CREATE TABLE IF NOT EXISTS chat_participants (
       chat_id INTEGER REFERENCES chats(id) ON DELETE CASCADE,
@@ -51,7 +48,6 @@ async function initDB() {
     );
   `);
 
-  // Сообщения
   await pool.query(`
     CREATE TABLE IF NOT EXISTS messages (
       id SERIAL PRIMARY KEY,
@@ -64,7 +60,6 @@ async function initDB() {
     );
   `);
 
-  // Реакции
   await pool.query(`
     CREATE TABLE IF NOT EXISTS message_reactions (
       id SERIAL PRIMARY KEY,
@@ -76,7 +71,6 @@ async function initDB() {
     );
   `);
 
-  // Друзья
   await pool.query(`
     CREATE TABLE IF NOT EXISTS friendships (
       id SERIAL PRIMARY KEY,
@@ -88,7 +82,6 @@ async function initDB() {
     );
   `);
 
-  // Удалённые чаты (мягкое удаление)
   await pool.query(`
     CREATE TABLE IF NOT EXISTS deleted_chats (
       chat_id INTEGER REFERENCES chats(id) ON DELETE CASCADE,
@@ -97,7 +90,6 @@ async function initDB() {
     );
   `);
 
-  // Создаём публичный чат, если его нет
   const publicChat = await pool.query(`SELECT id FROM chats WHERE type = 'public'`);
   if (publicChat.rows.length === 0) {
     await pool.query(`INSERT INTO chats (type) VALUES ('public')`);
@@ -117,6 +109,9 @@ async function isFullNickUnique(fullNick) {
 }
 
 async function getOrCreateNotebook(fullNick) {
+  const userExists = await pool.query('SELECT 1 FROM users WHERE full_nick = $1', [fullNick]);
+  if (userExists.rows.length === 0) return null;
+
   let notebook = await pool.query(
     `SELECT c.id FROM chats c
      JOIN chat_participants cp ON cp.chat_id = c.id
@@ -295,7 +290,6 @@ app.post('/friend-respond', async (req, res) => {
   res.json({ success: true });
 });
 
-// Статус дружбы
 app.get('/friendship-status', async (req, res) => {
   const { from, to } = req.query;
   if (!from || !to) return res.json({ status: 'none' });
@@ -310,7 +304,6 @@ app.get('/friendship-status', async (req, res) => {
   res.json({ status, isOutgoing });
 });
 
-// Поиск пользователей
 app.get('/search-users', async (req, res) => {
   const { q, full_nick } = req.query;
   if (!q || !full_nick) return res.json([]);
@@ -344,9 +337,11 @@ app.get('/chats', async (req, res) => {
   `, [full_nick]);
   
   const chats = [
-    { id: publicChatId, type: 'public', name: 'Общий чат', other: null },
-    { id: notebookId, type: 'notebook', name: 'Блокнот', other: null }
+    { id: publicChatId, type: 'public', name: 'Общий чат', other: null }
   ];
+  if (notebookId) {
+    chats.push({ id: notebookId, type: 'notebook', name: 'Блокнот', other: null });
+  }
   privateChats.rows.forEach(row => {
     chats.push({
       id: row.id,
@@ -388,13 +383,11 @@ app.post('/create-private-chat', async (req, res) => {
     WHERE c.type = 'private'
   `, [user1, user2]);
   if (existing.rows.length > 0) {
-    // Проверяем, не удалён ли чат одним из пользователей
     const deleted = await pool.query(
       `SELECT 1 FROM deleted_chats WHERE chat_id = $1 AND full_nick = $2`,
       [existing.rows[0].id, user1]
     );
     if (deleted.rows.length > 0) {
-      // Восстанавливаем чат для этого пользователя
       await pool.query(`DELETE FROM deleted_chats WHERE chat_id = $1 AND full_nick = $2`, [existing.rows[0].id, user1]);
     }
     return res.json({ success: true, chatId: existing.rows[0].id });
@@ -540,7 +533,6 @@ app.post('/edit-message', async (req, res) => {
   }
 });
 
-// Онлайн статус
 const onlineUsers = new Map();
 
 io.on('connection', (socket) => {
