@@ -28,6 +28,7 @@ async function initDB() {
       full_nick VARCHAR(55) UNIQUE NOT NULL,
       pin_hash TEXT NOT NULL,
       token TEXT UNIQUE,
+      badge VARCHAR(10) DEFAULT '',
       created_at TIMESTAMP DEFAULT NOW()
     );
   `);
@@ -139,13 +140,13 @@ app.post('/auth', async (req, res) => {
     return res.status(400).json({ success: false, error: 'Неверный ник или PIN (4 цифры)' });
   }
   const cleanNick = nick.trim();
-  const existing = await pool.query('SELECT id, full_nick, pin_hash FROM users WHERE nick = $1', [cleanNick]);
+  const existing = await pool.query('SELECT id, full_nick, pin_hash, badge FROM users WHERE nick = $1', [cleanNick]);
   if (existing.rows.length > 0) {
     const valid = await bcrypt.compare(pin, existing.rows[0].pin_hash);
     if (!valid) return res.json({ success: false, error: 'Неверный PIN' });
     const token = uuidv4();
     await pool.query('UPDATE users SET token = $1 WHERE id = $2', [token, existing.rows[0].id]);
-    return res.json({ success: true, full_nick: existing.rows[0].full_nick, token });
+    return res.json({ success: true, full_nick: existing.rows[0].full_nick, badge: existing.rows[0].badge || '', token });
   } else {
     let tag, full_nick, unique = false, attempts = 0;
     while (!unique && attempts < 20) {
@@ -158,18 +159,18 @@ app.post('/auth', async (req, res) => {
     const pinHash = await bcrypt.hash(pin, 10);
     const token = uuidv4();
     await pool.query(
-      'INSERT INTO users (nick, tag, full_nick, pin_hash, token) VALUES ($1, $2, $3, $4, $5)',
-      [cleanNick, tag, full_nick, pinHash, token]
+      'INSERT INTO users (nick, tag, full_nick, pin_hash, token, badge) VALUES ($1, $2, $3, $4, $5, $6)',
+      [cleanNick, tag, full_nick, pinHash, token, '']
     );
-    return res.json({ success: true, full_nick, token });
+    return res.json({ success: true, full_nick, badge: '', token });
   }
 });
 
 app.post('/verify', async (req, res) => {
   const { token } = req.body;
   if (!token) return res.json({ success: false });
-  const user = await pool.query('SELECT full_nick FROM users WHERE token = $1', [token]);
-  if (user.rows.length > 0) res.json({ success: true, full_nick: user.rows[0].full_nick });
+  const user = await pool.query('SELECT full_nick, badge FROM users WHERE token = $1', [token]);
+  if (user.rows.length > 0) res.json({ success: true, full_nick: user.rows[0].full_nick, badge: user.rows[0].badge || '' });
   else res.json({ success: false });
 });
 
@@ -212,6 +213,13 @@ app.post('/change-pin', async (req, res) => {
   res.json({ success: true });
 });
 
+app.post('/update-badge', async (req, res) => {
+  const { token, badge } = req.body;
+  if (!token) return res.status(400).json({ success: false });
+  await pool.query('UPDATE users SET badge = $1 WHERE token = $2', [badge || '', token]);
+  res.json({ success: true });
+});
+
 app.delete('/delete-account', async (req, res) => {
   const { token, pin } = req.body;
   if (!token || !pin) return res.status(400).json({ success: false, error: 'Требуется PIN' });
@@ -230,7 +238,7 @@ app.get('/friends', async (req, res) => {
   let query;
   if (filter === 'accepted') {
     query = `
-      SELECT u.full_nick, u.nick, u.tag
+      SELECT u.full_nick, u.nick, u.tag, u.badge
       FROM friendships f
       JOIN users u ON (f.user_full_nick = u.full_nick OR f.friend_full_nick = u.full_nick)
       WHERE (f.user_full_nick = $1 OR f.friend_full_nick = $1)
@@ -239,14 +247,14 @@ app.get('/friends', async (req, res) => {
     `;
   } else if (filter === 'pending_incoming') {
     query = `
-      SELECT u.full_nick, u.nick, u.tag
+      SELECT u.full_nick, u.nick, u.tag, u.badge
       FROM friendships f
       JOIN users u ON f.user_full_nick = u.full_nick
       WHERE f.friend_full_nick = $1 AND f.status = 'pending'
     `;
   } else if (filter === 'pending_outgoing') {
     query = `
-      SELECT u.full_nick, u.nick, u.tag
+      SELECT u.full_nick, u.nick, u.tag, u.badge
       FROM friendships f
       JOIN users u ON f.friend_full_nick = u.full_nick
       WHERE f.user_full_nick = $1 AND f.status = 'pending'
@@ -308,7 +316,7 @@ app.get('/search-users', async (req, res) => {
   const { q, full_nick } = req.query;
   if (!q || !full_nick) return res.json([]);
   const result = await pool.query(
-    `SELECT full_nick, nick, tag FROM users
+    `SELECT full_nick, nick, tag, badge FROM users
      WHERE (nick ILIKE $1 OR full_nick ILIKE $1) AND full_nick != $2
      LIMIT 20`,
     [`%${q}%`, full_nick]
@@ -353,7 +361,7 @@ app.get('/chats', async (req, res) => {
   
   for (let chat of chats) {
     const lastMsg = await pool.query(`
-      SELECT text, full_nick, created_at FROM messages
+      SELECT id, text, full_nick, created_at FROM messages
       WHERE chat_id = $1
       ORDER BY created_at DESC LIMIT 1
     `, [chat.id]);
@@ -533,7 +541,8 @@ app.post('/edit-message', async (req, res) => {
   }
 });
 
-const onlineUsers = new Map();
+// Онлайн статус и присутствие в чатах
+const onlineUsers = new Map(); // full_nick -> Set<socket.id>
 
 io.on('connection', (socket) => {
   let currentFullNick = null;
@@ -556,10 +565,16 @@ io.on('connection', (socket) => {
 
   socket.on('join chat', (chatId) => {
     socket.join(`chat:${chatId}`);
+    if (currentFullNick) {
+      io.to(`chat:${chatId}`).emit('user joined chat', { chatId, full_nick: currentFullNick });
+    }
   });
 
   socket.on('leave chat', (chatId) => {
     socket.leave(`chat:${chatId}`);
+    if (currentFullNick) {
+      io.to(`chat:${chatId}`).emit('user left chat', { chatId, full_nick: currentFullNick });
+    }
   });
 
   socket.on('typing', ({ chatId, full_nick }) => {
