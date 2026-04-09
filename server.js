@@ -88,7 +88,7 @@ async function initDB() {
     );
   `);
 
-  // Удалённые чаты (для мягкого удаления)
+  // Удалённые чаты (мягкое удаление)
   await pool.query(`
     CREATE TABLE IF NOT EXISTS deleted_chats (
       chat_id INTEGER REFERENCES chats(id) ON DELETE CASCADE,
@@ -103,7 +103,7 @@ async function initDB() {
     await pool.query(`INSERT INTO chats (type) VALUES ('public')`);
   }
 
-  console.log('✅ База данных готова (использованы существующие таблицы)');
+  console.log('✅ База данных готова');
 }
 initDB();
 
@@ -388,6 +388,15 @@ app.post('/create-private-chat', async (req, res) => {
     WHERE c.type = 'private'
   `, [user1, user2]);
   if (existing.rows.length > 0) {
+    // Проверяем, не удалён ли чат одним из пользователей
+    const deleted = await pool.query(
+      `SELECT 1 FROM deleted_chats WHERE chat_id = $1 AND full_nick = $2`,
+      [existing.rows[0].id, user1]
+    );
+    if (deleted.rows.length > 0) {
+      // Восстанавливаем чат для этого пользователя
+      await pool.query(`DELETE FROM deleted_chats WHERE chat_id = $1 AND full_nick = $2`, [existing.rows[0].id, user1]);
+    }
     return res.json({ success: true, chatId: existing.rows[0].id });
   }
   const newChat = await pool.query(`INSERT INTO chats (type) VALUES ('private') RETURNING id`);
