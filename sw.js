@@ -1,4 +1,4 @@
-const CACHE_NAME = 'chatxlite-v3';
+const CACHE_NAME = 'chatx-v1';
 const urlsToCache = [
   '/',
   '/index.html',
@@ -28,11 +28,13 @@ self.addEventListener('activate', event => {
 });
 
 self.addEventListener('fetch', event => {
+  // Не кэшируем запросы к API и WebSocket
   if (event.request.url.includes('/socket.io/') || 
       event.request.url.includes('/auth') ||
       event.request.url.includes('/verify') ||
-      event.request.url.includes('/public-chat-id') ||
-      event.request.url.includes('/chat-messages')) {
+      event.request.url.includes('/chats') ||
+      event.request.url.includes('/messages') ||
+      event.request.url.includes('/upload')) {
     return;
   }
   event.respondWith(
