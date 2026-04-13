@@ -246,6 +246,7 @@
 
 <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
 <script>
+// == ФИНАЛЬНЫЙ СКРИПТ CHATX ==
 (function() {
     function addTapped(e) {
         const t = e.target.closest?.('button, .clickable');
@@ -298,17 +299,20 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // ========== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ==========
     function showConfirm(message, onOk, title = 'Подтверждение') {
-        $('confirmTitle').innerText = title;
-        $('confirmMessage').innerText = message;
+        const confirmTitle = $('confirmTitle');
+        const confirmMessage = $('confirmMessage');
         const modal = $('confirmModal');
         const okBtn = $('confirmOkBtn');
         const cancelBtn = $('confirmCancelBtn');
+        if (!modal || !okBtn || !cancelBtn) return;
+        confirmTitle.innerText = title;
+        confirmMessage.innerText = message;
         const close = () => { modal.style.display = 'none'; okBtn.onclick = null; cancelBtn.onclick = null; };
         okBtn.onclick = () => { close(); if(onOk) onOk(); };
         cancelBtn.onclick = () => { close(); };
         modal.style.display = 'flex';
     }
-    function showAlert(message, onClose) { showConfirm(message, onClose, ' '); $('confirmTitle').style.display='none'; }
+    function showAlert(message, onClose) { showConfirm(message, onClose, ' '); const ct = $('confirmTitle'); if(ct) ct.style.display='none'; }
 
     function escapeHtml(s) { return s.replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'})[m]); }
     function linkify(t) { return t.replace(/(https?:\/\/[^\s]+)/g, u => `<a href="${u}" target="_blank" rel="noopener noreferrer" style="color:var(--accent-color);text-decoration:underline;">${u}</a>`); }
@@ -347,9 +351,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!isDragging) return;
             currentX = e.touches[0].clientX;
             const diff = currentX - startX;
-            if (diff > 0) {
-                element.style.transform = `translateX(${diff}px)`;
-            }
+            if (diff > 0) element.style.transform = `translateX(${diff}px)`;
         }, {passive: true});
         element.addEventListener('touchend', e => {
             if (!isDragging) return;
@@ -357,9 +359,7 @@ document.addEventListener('DOMContentLoaded', function() {
             element.classList.remove('dragging');
             const diff = currentX - startX;
             element.style.transform = '';
-            if (diff > threshold) {
-                onClose();
-            }
+            if (diff > threshold) onClose();
             startX = 0; currentX = 0;
         });
     }
@@ -370,8 +370,8 @@ document.addEventListener('DOMContentLoaded', function() {
         const panel = $(tabId+'Panel');
         if (panel) panel.style.display = 'flex';
         document.querySelectorAll('.nav-item').forEach(b => b.classList.toggle('active', b.dataset.tab === tabId));
-        if(tabId === 'contacts') { $('contactsSearchInput').value=''; contactsSearchQuery=''; loadContacts(); }
-        else if(tabId === 'chats') { $('chatSearchInput').value=''; chatSearchQuery=''; loadChatsList(); $('userSearchResults').innerHTML=''; $('chatsListContainer').style.display='block'; }
+        if(tabId === 'contacts') { const inp = $('contactsSearchInput'); if(inp) inp.value=''; contactsSearchQuery=''; loadContacts(); }
+        else if(tabId === 'chats') { const inp = $('chatSearchInput'); if(inp) inp.value=''; chatSearchQuery=''; loadChatsList(); $('userSearchResults').innerHTML=''; $('chatsListContainer').style.display='block'; }
         else if(tabId === 'profile') { $('profileNickDisplay').innerText = currentUser.nick; $('profileDescriptionDisplay').innerText = currentUser.description || ''; loadPrivacySettings(); }
         if(currentChat.id) closeChatView();
     }
@@ -723,11 +723,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function bindUI() {
         document.querySelectorAll('.nav-item').forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
-        $('contactsSearchInput').oninput = e=>{ contactsSearchQuery=e.target.value; renderContactsList(); };
-        $('chatSearchInput').oninput = e=>{ chatSearchQuery=e.target.value; renderChatsList(); searchUsers(e.target.value); };
-        $('backFromChatBtn').onclick = closeChatView;
-        $('sendBtn').onclick = sendMessage;
-        const inp = $('messageInput'); inp.addEventListener('input', ()=>{ autoResize(inp); onTyping(true); });
+        const contactsSearch = $('contactsSearchInput'); if(contactsSearch) contactsSearch.oninput = e=>{ contactsSearchQuery=e.target.value; renderContactsList(); };
+        const chatSearch = $('chatSearchInput'); if(chatSearch) chatSearch.oninput = e=>{ chatSearchQuery=e.target.value; renderChatsList(); searchUsers(e.target.value); };
+        const backBtn = $('backFromChatBtn'); if(backBtn) backBtn.onclick = closeChatView;
+        const sendBtn = $('sendBtn'); if(sendBtn) sendBtn.onclick = sendMessage;
+        const inp = $('messageInput'); if(inp) inp.addEventListener('input', ()=>{ autoResize(inp); onTyping(true); });
         window.isUserScrolling = false; $('messagesContainer')?.addEventListener('scroll', ()=>{ window.isUserScrolling=true; clearTimeout(window.scrollTO); window.scrollTO=setTimeout(()=>window.isUserScrolling=false,200); });
 
         initSwipeToClose($('chatView'), closeChatView);
