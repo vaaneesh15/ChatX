@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+    <meta name="theme-color" content="#1c1c1e" id="themeColorMeta">
+    <title>ChatX Lite</title>
+    <link rel="manifest" href="/manifest.json">
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <style>
+        * { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+    </style>
+    <script>
+        document.addEventListener('contextmenu', function(e) { e.preventDefault(); return false; });
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js').then(reg => {
+                    console.log('SW registered:', reg.scope);
+                }).catch(err => console.log('SW registration failed:', err));
+            });
+        }
+    </script>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none; -webkit-touch-callout:none; }
+        html { font-size:1.1rem; -webkit-text-size-adjust:100%; }
+        html, body { height:100%; overflow:hidden; }
+        body { background:#121212; color:#fff; font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; position:fixed; width:100%; }
+        :root { --bg-page:#121212; --text-primary:#fff; --text-secondary:#8e8e93; --border-light:rgba(84,84,88,0.4); --accent-color:#6B9FFF; --input-bg:#1c1c1e; --accent-rgb:107,159,255; }
+        button, .clickable { cursor:pointer; transition:all 0.05s ease; }
+        button:active, .clickable:active, button.tapped, .clickable.tapped { opacity:0.6; transform:scale(0.97); }
+        .login-screen { position:fixed; top:0; left:0; width:100%; height:100%; background:var(--bg-page); display:flex; align-items:flex-start; justify-content:center; padding-top:25vh; z-index:2000; overflow:hidden; }
+        .login-card { background:var(--input-bg); border-radius:2rem; padding:2rem; width:90%; max-width:350px; border:1px solid var(--border-light); box-shadow:0 8px 20px rgba(0,0,0,0.3); }
+        .login-card h2 { margin-bottom:1.5rem; text-align:center; font-weight:590; font-size:1.8rem; }
+        .login-card input { width:100%; padding:0.9rem; margin-bottom:1rem; background:var(--bg-page); border:1px solid var(--border-light); border-radius:1rem; color:var(--text-primary); font-size:1rem; outline:none; }
+        .login-card input:focus { border-color:var(--accent-color); }
+        .login-card button { width:100%; padding:0.9rem; background:var(--accent-color); border:none; border-radius:1rem; color:white; font-weight:600; font-size:1rem; }
+        .login-card .error { color:#ff6b6b; font-size:0.8rem; margin-top:0.5rem; text-align:center; }
+        .app-container { height:100%; display:flex; flex-direction:column; background:var(--bg-page); position:relative; overflow:hidden; }
+        .chat-view { display:flex; flex-direction:column; height:100%; background:var(--bg-page); }
+        .chat-messages { flex:1; overflow-y:auto; padding:1rem; display:flex; flex-direction:column; gap:14px; }
+        .message-item { display:flex; flex-direction:column; width:100%; position:relative; background:transparent; }
+        .message-text.highlight { color:var(--accent-color)!important; transition:color 0.2s; }
+        .message-header { display:flex; align-items:baseline; gap:8px; margin-bottom:4px; }
+        .message-nick { font-size:0.85rem; font-weight:600; display:flex; align-items:baseline; gap:0; }
+        .nick-main { color:var(--text-secondary); }
+        .own-message .nick-main { color:var(--accent-color); }
+        .message-actions-btn { position:absolute; right:0; top:0; background:none; border:none; display:inline-flex; align-items:center; justify-content:center; width:32px; height:32px; border-radius:16px; color:var(--text-secondary); }
+        .message-actions-btn svg { width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:2; }
+        .reply-context { margin-bottom:8px; padding-left:10px; border-left:2px solid var(--accent-color); cursor:pointer; }
+        .reply-context .reply-nick { font-size:0.8rem; color:var(--accent-color); font-weight:600; }
+        .reply-context .reply-text { font-size:0.85rem; color:var(--text-secondary); white-space:pre-wrap; word-break:break-word; }
+        .message-text { font-size:1rem; line-height:1.4; color:var(--text-primary); white-space:pre-wrap; word-break:break-word; }
+        .message-text a { color:var(--accent-color); text-decoration:underline; }
+        .message-footer { display:flex; align-items:center; gap:12px; margin-top:8px; flex-wrap:wrap; justify-content:space-between; }
+        .footer-left { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+        .footer-right { display:flex; align-items:center; gap:8px; font-size:0.75rem; color:var(--text-secondary); }
+        .timestamp { font-size:0.75rem; color:var(--text-secondary); }
+        .reactions-container { display:flex; flex-wrap:wrap; gap:6px; margin-left:0; }
+        .reaction-badge { background:var(--input-bg); border-radius:2rem; padding:4px 10px; font-size:0.85rem; display:inline-flex; align-items:center; gap:4px; cursor:pointer; border:0.5px solid var(--border-light); }
+        .reaction-badge .reaction-count { color:var(--text-secondary); }
+        .reaction-badge.user-reacted .reaction-count { color:var(--accent-color); }
+        .edited-badge { font-size:0.75rem; color:var(--text-secondary); font-style:italic; }
+        .message-divider { margin-top:10px; height:1px; background:var(--border-light); width:100%; }
+        .typing-indicator { background:var(--input-bg); border-top:1px solid var(--border-light); padding:0.5rem 1rem; font-size:0.8rem; color:var(--text-secondary); transition:all 0.2s; text-align:center; }
+        .typing-indicator.hidden { display:none; }
+        .input-wrapper { background:var(--input-bg); border-top:1px solid var(--border-light); padding-bottom:env(safe-area-inset-bottom,0); }
+        .input-row { display:flex; gap:10px; align-items:center; padding:0.8rem 1rem; }
+        .input-row textarea { flex:1; background:transparent; border:none; padding:0.6rem 0; font-size:1rem; color:var(--text-primary); outline:none; resize:none; font-family:inherit; line-height:1.4; max-height:150px; overflow-y:auto; }
+        .send-btn { background:var(--accent-color); border:none; width:2.8rem; height:2.8rem; border-radius:2rem; color:white; font-size:1.4rem; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+        .settings-btn { background:var(--bg-page); border:1px solid var(--border-light); width:2.8rem; height:2.8rem; border-radius:2rem; color:var(--text-primary); cursor:pointer; display:flex; align-items:center; justify-content:center; }
+        .settings-btn svg { width:1.5rem; height:1.5rem; stroke:currentColor; stroke-width:1.8; fill:none; }
+        .reply-indicator, .edit-indicator { margin:0.5rem 1rem 0; background:var(--input-bg); border-left:2px solid var(--accent-color); border-radius:0; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:0.5rem 0.8rem; position:relative; }
+        .reply-indicator::before, .edit-indicator::before { content:''; position:absolute; top:-1px; left:0; right:0; height:1px; background:var(--border-light); }
+        .reply-indicator .reply-content, .edit-indicator .edit-content { flex:1; overflow:hidden; }
+        .reply-indicator .reply-nick, .edit-indicator .edit-label { font-size:0.8rem; color:var(--accent-color); font-weight:600; }
+        .reply-indicator .reply-text, .edit-indicator .edit-text { font-size:0.85rem; color:var(--text-secondary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .cancel-reply, .cancel-edit { background:var(--bg-page); border:none; border-radius:1rem; width:2.2rem; height:2.2rem; color:var(--text-primary); cursor:pointer; font-size:1.3rem; display:flex; align-items:center; justify-content:center; margin-left:auto; }
+        .modal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); backdrop-filter:blur(12px); z-index:10000; justify-content:center; align-items:center; }
+        .modal.modal-top { z-index:10001; }
+        .modal.fullscreen { background:var(--bg-page); backdrop-filter:none; align-items:flex-start; padding-top:0.5rem; }
+        .modal-content { background:var(--input-bg); border-radius:2rem; padding:1.8rem; width:90%; max-width:380px; border:0.5px solid var(--border-light); box-shadow:0 8px 20px rgba(0,0,0,0.3); }
+        .fullscreen .modal-content { width:100%; max-width:100%; border-radius:0; background:var(--bg-page); box-shadow:none; border:none; padding:1rem; }
+        .modal-content h3 { margin-bottom:1.2rem; font-size:1.4rem; font-weight:590; color:var(--text-primary); text-align:center; }
+        .modal-setting { margin-bottom:1.2rem; }
+        .modal-setting label { display:block; margin-bottom:0.5rem; font-weight:500; font-size:0.9rem; color:var(--text-secondary); }
+        .modal-setting input, .modal-setting textarea { width:100%; padding:0.7rem 1rem; background:var(--bg-page); border:0.5px solid var(--border-light); border-radius:1rem; font-size:1rem; color:var(--text-primary); outline:none; }
+        .modal-buttons { display:flex; gap:12px; margin-top:1.5rem; }
+        .modal-buttons button { flex:1; padding:0.8rem; border-radius:1rem; font-weight:590; cursor:pointer; border:1px solid var(--border-light); font-size:0.9rem; background:var(--bg-page); color:var(--text-primary); }
+        .context-menu-buttons { display:flex; flex-direction:column; gap:0.6rem; margin-top:1rem; }
+        .context-menu-buttons button { background:var(--bg-page); border:1px solid var(--border-light); padding:0.8rem 1rem; border-radius:1rem; font-size:1rem; color:var(--text-primary); display:flex; align-items:center; gap:14px; cursor:pointer; }
+        .context-menu-buttons button:active { background:rgba(128,128,128,0.2); }
+        .context-menu-buttons svg { width:1.3rem; height:1.3rem; stroke:currentColor; stroke-width:1.5; fill:none; }
+        .reactions-picker { display:grid; grid-template-columns:repeat(5,1fr); gap:0.6rem; justify-items:center; margin-bottom:1.2rem; }
+        .reactions-picker button { background:none; border:none; font-size:1.8rem; cursor:pointer; padding:0.4rem; border-radius:1rem; }
+        .settings-container { display:flex; flex-direction:column; gap:0; }
+        .setting-row { display:flex; flex-direction:column; gap:0.6rem; border-bottom:1px solid var(--border-light); padding:0.8rem 0; }
+        .setting-row:last-of-type { border-bottom:none; }
+        .setting-header { display:flex; justify-content:space-between; align-items:center; }
+        .setting-label { font-size:1rem; color:var(--text-primary); }
+        .setting-value { display:flex; justify-content:space-between; align-items:center; width:100%; }
+        .nick-readonly { background:var(--bg-page); border:1px solid var(--border-light); border-radius:1rem; padding:0.7rem 1rem; color:var(--text-primary); font-size:0.95rem; width:100%; text-align:left; }
+        .setting-row button { background:var(--bg-page); border:1px solid var(--border-light); border-radius:1rem; padding:0.6rem 1.2rem; color:var(--text-primary); font-size:0.9rem; cursor:pointer; }
+        .switch { position:relative; display:inline-block; width:52px; height:26px; }
+        .switch input { opacity:0; width:0; height:0; }
+        .slider { position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0; background:#2c2c2e; transition:0.2s; border-radius:26px; }
+        .slider:before { position:absolute; content:""; height:22px; width:22px; left:2px; bottom:2px; background:white; transition:0.2s; border-radius:50%; }
+        input:checked + .slider { background:var(--accent-color); }
+        input:checked + .slider:before { transform:translateX(26px); }
+        .profile-menu-btn { background:var(--bg-page); border:1px solid var(--border-light); border-radius:1rem; padding:0.8rem 1rem; font-size:1rem; color:var(--text-primary); display:flex; align-items:center; gap:14px; cursor:pointer; width:100%; }
+        .profile-menu-btn svg { width:1.4rem; height:1.4rem; stroke:currentColor; stroke-width:1.5; fill:none; }
+        .modal-back-btn { background:var(--bg-page); border:none; color:var(--accent-color); font-size:1.5rem; width:2.5rem; height:2.5rem; border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer; border:0.5px solid var(--border-light); }
+        select, .badge-select { background:var(--bg-page); border:1px solid var(--border-light); border-radius:1rem; padding:0.5rem 0.8rem; color:var(--text-primary); font-size:0.9rem; width:125px; outline:none; -webkit-appearance:none; appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238e8e93' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 0.8rem center; background-size:1rem; }
+        #badgeSelect { width:162px; }
+        .fullscreen .modal-content > div:first-child { display:flex; align-items:center; margin-bottom:1rem; border-bottom:1px solid var(--border-light); padding-bottom:0.5rem; }
+        .fullscreen .modal-content > div:first-child h3 { margin-left:0.5rem; margin-bottom:0; line-height:2.5rem; }
+        .fullscreen .modal-back-btn { margin-right:0.5rem; }
+        .user-badge { margin-right:4px; font-size:1.1rem; }
+        .tabs { display:flex; border-bottom:1px solid var(--border-light); margin-bottom:1rem; }
+        .tab-btn { flex:1; background:none; border:none; padding:0.8rem; color:var(--text-secondary); font-size:1rem; cursor:pointer; border-bottom:2px solid transparent; text-align:center; }
+        .tab-btn.active { color:var(--accent-color); border-bottom-color:var(--accent-color); }
+        .tab-pane { display:none; }
+        .tab-pane.active { display:block; }
+    </style>
+</head>
+<body>
+<div id="loginScreen" class="login-screen">
+    <div class="login-card">
+        <h2>ChatX Lite</h2>
+        <input type="text" id="loginNick" placeholder="Ник" autocomplete="off">
+        <input type="text" id="loginPin" placeholder="PIN (4 цифры)" maxlength="4" inputmode="numeric" pattern="\d*" autocomplete="off">
+        <button id="loginBtn">Войти</button>
+        <div id="loginError" class="error"></div>
+    </div>
+</div>
+<div id="appContainer" class="app-container" style="display:none;">
+    <div class="chat-view">
+        <div class="chat-messages" id="messagesContainer"></div>
+        <div class="typing-indicator hidden" id="typingIndicator"></div>
+        <div class="input-wrapper">
+            <div class="input-row">
+                <button class="settings-btn" id="openSettingsBtn">
+                    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                </button>
+                <textarea id="messageInput" placeholder="Сообщение..." rows="1"></textarea>
+                <button class="send-btn" id="sendBtn">↑</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальные окна -->
+<div id="confirmModal" class="modal modal-top"><div class="modal-content"><h3 id="confirmTitle">Подтверждение</h3><p id="confirmMessage">Вы уверены?</p><div class="modal-buttons"><button id="confirmCancelBtn">Отмена</button><button id="confirmOkBtn">OK</button></div></div></div>
+<div id="pinConfirmModal" class="modal modal-top"><div class="modal-content"><h3>Введите PIN</h3><div class="modal-setting"><input type="password" id="pinConfirmInput" placeholder="PIN" maxlength="4"></div><div class="modal-buttons"><button id="pinConfirmCancelBtn">Отмена</button><button id="pinConfirmOkBtn">Подтвердить</button></div></div></div>
+<div id="reactionPickerModal" class="modal"><div class="modal-content"><h3>Реакция</h3><div class="reactions-picker" id="reactionsPicker"></div><div class="modal-buttons"><button id="closeReactionPickerBtn">Закрыть</button></div></div></div>
+<div id="contextMenuModal" class="modal"><div class="modal-content"><div id="contextMessageNick"></div><div id="contextMessagePreview"></div><div class="context-menu-buttons" id="contextMenuButtons"></div></div></div>
+<div id="changeNickModal" class="modal modal-top"><div class="modal-content"><h3>Сменить ник</h3><div class="modal-setting"><input type="text" id="newNickInput" placeholder="Новый ник"></div><div class="modal-buttons"><button id="cancelNickChangeBtn">Отмена</button><button id="applyNickChangeBtn">Применить</button></div></div></div>
+
+<!-- Главное модальное окно настроек -->
+<div id="settingsModal" class="modal fullscreen">
+    <div class="modal-content" id="settingsModalContent">
+        <div style="display:flex; align-items:center; margin-bottom:1rem; border-bottom:1px solid var(--border-light); padding-bottom:0.5rem;">
+            <button id="closeSettingsModalBtn" class="modal-back-btn">←</button>
+            <h3 style="flex:1; text-align:center; margin:0;">Настройки</h3>
+            <div style="width:2.5rem;"></div>
+        </div>
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="profileTab">Профиль</button>
+            <button class="tab-btn" data-tab="appearanceTab">Оформление</button>
+        </div>
+        <div id="profileTab" class="tab-pane active">
+            <div class="setting-row"><div class="setting-header"><span class="setting-label">Ник</span><button id="openChangeNickModalBtn">Изменить</button></div></div>
+            <div class="setting-row"><div class="setting-header"><span class="setting-label">Значок</span><select id="badgeSelect" class="badge-select"><option value="" selected>Отсутствует</option><option value="⭐">⭐ Звезда</option><option value="❤️">❤️ Сердечко</option><option value="🔥">🔥 Огонёк</option><option value="🍀">🍀 Листочек</option><option value="⚡">⚡ Молния</option><option value="🌹">🌹 Розочка</option><option value="⛔️">⛔️ СТОП</option><option value="🎁">🎁 Подарок</option><option value="🎉">🎉 Конфетти</option></select></div></div>
+            <div class="setting-row"><button id="changePinBtn" class="profile-menu-btn" style="justify-content:flex-start;">Сменить PIN</button></div>
+            <div class="setting-row"><button id="logoutBtn" class="profile-menu-btn" style="justify-content:flex-start;">Выйти из аккаунта</button></div>
+            <div class="setting-row"><button id="deleteAccountBtn" class="profile-menu-btn" style="color:#ff375f; justify-content:flex-start;">Удалить аккаунт</button></div>
+        </div>
+        <div id="appearanceTab" class="tab-pane">
+            <div class="setting-row"><div class="setting-header"><span class="setting-label">Показывать дату</span><label class="switch"><input type="checkbox" id="showDateToggle"><span class="slider"></span></label></div></div>
+            <div class="setting-row"><div class="setting-header"><span class="setting-label">Реакции</span><label class="switch"><input type="checkbox" id="showReactionsToggle" checked><span class="slider"></span></label></div></div>
+            <div class="setting-row"><div class="setting-header"><span class="setting-label">Показывать время</span><label class="switch"><input type="checkbox" id="showTimeToggle" checked><span class="slider"></span></label></div></div>
+            <div class="setting-row"><div class="setting-header"><span class="setting-label">Значки</span><label class="switch"><input type="checkbox" id="showBadgesToggle" checked><span class="slider"></span></label></div></div>
+            <div class="setting-row"><div class="setting-header"><span class="setting-label">Оттенок</span><select id="accentColorSelect" class="badge-select"><option value="#6B9FFF" selected>Небо</option><option value="#FF9F9F">Алый</option><option value="#FFB87C">Медный</option><option value="#FFA6C9">Пинки</option><option value="#6CD4C5">Мята</option><option value="#C9A6FF">Лаванда</option></select></div></div>
+        </div>
+    </div>
+</div>
+<div id="changePinModal" class="modal"><div class="modal-content"><h3>Смена PIN</h3><div class="modal-setting"><label>Старый PIN</label><input type="password" id="oldPinInput" placeholder="Старый PIN" maxlength="4"></div><div class="modal-setting"><label>Новый PIN</label><input type="password" id="newPinInput" placeholder="Новый PIN" maxlength="4"></div><div class="modal-buttons"><button id="cancelPinBtn">Отмена</button><button id="applyPinBtn">Применить</button></div></div></div>
+
+<script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
+<script>
+(function() {
+    function addTapped(e) { const t = e.target.closest('button, .clickable'); if(t) t.classList.add('tapped'); }
+    function removeTapped(e) { const t = e.target.closest('button, .clickable'); if(t) t.classList.remove('tapped'); }
+    document.addEventListener('touchstart', addTapped, {passive: true});
+    document.addEventListener('touchend', removeTapped);
+    document.addEventListener('touchcancel', removeTapped);
+    document.addEventListener('mousedown', addTapped);
+    document.addEventListener('mouseup', removeTapped);
+    document.addEventListener('mouseleave', removeTapped);
+})();
+document.addEventListener('DOMContentLoaded', function() {
+    let socket = null;
+    let currentUser = { nick: "", badge: "" };
+    let authToken = localStorage.getItem('chatxlite_token');
+    let appSettings = JSON.parse(localStorage.getItem('chatxlite_settings')) || { showDate: true, showReactions: true, showTime: true, showBadges: true, accentColor: '#6B9FFF' };
+    let messages = [];
+    let currentChatId = null;
+    let editingMessage = null;
+    let pendingDeleteMessageId = null;
+    let currentReactionMessage = null;
+    let replyingTo = null;
+    let typingTimeout = null;
+    let pendingAction = null;
+    let isUserNearBottom = true;
+
+    document.documentElement.style.setProperty('--accent-color', appSettings.accentColor);
+
+    function showConfirm(message, onOk, title = 'Подтверждение') {
+        document.getElementById('confirmTitle').innerText = title;
+        document.getElementById('confirmMessage').innerText = message;
+        const modal = document.getElementById('confirmModal');
+        const okBtn = document.getElementById('confirmOkBtn');
+        const cancelBtn = document.getElementById('confirmCancelBtn');
+        const close = () => { modal.style.display = 'none'; okBtn.onclick = null; cancelBtn.onclick = null; };
+        okBtn.onclick = () => { close(); if(onOk) onOk(); };
+        cancelBtn.onclick = () => { close(); };
+        modal.style.display = 'flex';
+    }
+    function showAlert(message, onClose) { showConfirm(message, onClose, ' '); document.getElementById('confirmTitle').style.display='none'; }
+
+    function escapeHtml(s) { return s.replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'})[m]); }
+    function linkify(t) { return t.replace(/(https?:\/\/[^\s]+)/g, u => `<a href="${u}" target="_blank" rel="noopener noreferrer" style="color:var(--accent-color);text-decoration:underline;">${u}</a>`); }
+    function formatTimestamp(iso, showDate, showTime) {
+        const d = new Date(iso);
+        const h = String(d.getHours()).padStart(2,'0'), m = String(d.getMinutes()).padStart(2,'0');
+        const timeStr = `${h}:${m}`;
+        if(!showTime) return '';
+        if(showDate) {
+            const day = String(d.getDate()).padStart(2,'0'), mon = String(d.getMonth()+1).padStart(2,'0'), y = d.getFullYear();
+            return `${day}.${mon}.${y} ${timeStr}`;
+        } else return timeStr;
+    }
+
+    async function initChat() {
+        try {
+            const r = await fetch(`/public-chat-id`);
+            const d = await r.json();
+            currentChatId = d.chatId;
+            socket.emit('join chat', currentChatId);
+            await loadMessages();
+            renderMessages();
+        } catch(e) {}
+    }
+
+    async function loadMessages() {
+        if(!currentChatId) return;
+        try {
+            const r = await fetch(`/chat-messages?chat_id=${currentChatId}&nick=${encodeURIComponent(currentUser.nick)}`);
+            messages = await r.json();
+        } catch(e) {}
+    }
+
+    function checkIfNearBottom(container) {
+        const threshold = 100;
+        return container.scrollHeight - container.scrollTop - container.clientHeight <= threshold;
+    }
+
+    function renderMessages() {
+        const cont = document.getElementById('messagesContainer'); 
+        if(!cont) return;
+        const wasNearBottom = checkIfNearBottom(cont);
+        cont.innerHTML = '';
+        const showReact = appSettings.showReactions !== false;
+        messages.forEach(msg => {
+            const own = msg.nick === currentUser.nick;
+            const div = document.createElement('div'); div.className = 'message-item'+(own?' own-message':'');
+            div.dataset.id = msg.id; div.dataset.nick = msg.nick;
+            let reply = '';
+            if(msg.reply_to_id && msg.reply_nick) reply = `<div class="reply-context" data-message="${msg.reply_to_id}"><div class="reply-nick">${escapeHtml(msg.reply_nick)}</div><div class="reply-text">${escapeHtml(msg.reply_text||'')}</div></div>`;
+            let reacts = '';
+            if(showReact && msg.reactions?.length) { reacts = '<div class="reactions-container">'; msg.reactions.sort((a,b)=>b.count-a.count).forEach(r=>{ const ur = msg.user_reactions?.includes(r.reaction); reacts += `<button class="reaction-badge ${ur?'user-reacted':''}" data-reaction="${r.reaction}" data-message="${msg.id}"><span>${r.reaction}</span> <span class="reaction-count">${r.count}</span></button>`; }); reacts += '</div>'; }
+            const timeStr = formatTimestamp(msg.created_at, appSettings.showDate, appSettings.showTime);
+            const content = `<div class="message-text">${linkify(escapeHtml(msg.text||''))}</div>`;
+            const badge = (msg.nick === currentUser.nick) ? (currentUser.badge||'') : (msg.user_badge||'');
+            const header = appSettings.showBadges ? `<div class="message-header"><div class="message-nick"><span class="user-badge">${badge}</span><span class="nick-main">${escapeHtml(msg.nick)}</span></div></div>` : `<div class="message-header"><div class="message-nick"><span class="nick-main">${escapeHtml(msg.nick)}</span></div></div>`;
+            div.innerHTML = `${header}${reply}${content}<div class="message-footer"><div class="footer-left">${reacts}</div><div class="footer-right">${timeStr?`<span class="timestamp">${timeStr}</span>`:''}${msg.edited?'<span class="edited-badge">изменено</span>':''}</div></div><div class="message-divider"></div>`;
+            cont.appendChild(div);
+            const act = document.createElement('button'); act.className = 'message-actions-btn';
+            act.innerHTML = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>';
+            act.onclick = e => { e.stopPropagation(); showContextMenu(msg, own); };
+            div.appendChild(act);
+        });
+        attachReactionEvents();
+        document.querySelectorAll('.reply-context').forEach(el=>el.addEventListener('click',()=>scrollToMessage(+el.dataset.message)));
+
+        if (wasNearBottom) {
+            setTimeout(() => { cont.scrollTop = cont.scrollHeight; isUserNearBottom = true; }, 10);
+        } else {
+            isUserNearBottom = false;
+        }
+    }
+
+    function attachReactionEvents() { if(!appSettings.showReactions) return; document.querySelectorAll('.reaction-badge').forEach(b=>b.addEventListener('click',e=>{ e.stopPropagation(); addReaction(+b.dataset.message, b.dataset.reaction); })); }
+    async function addReaction(msgId, reaction) {
+        const r = await fetch('/add-reaction',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messageId:msgId, nick:currentUser.nick, reaction, isRoom:false})});
+        const d = await r.json(); if(d.success) { const m = messages.find(m=>m.id===msgId); if(m) { m.reactions = d.reactions; if(!m.user_reactions) m.user_reactions=[]; if(m.user_reactions.includes(reaction)) m.user_reactions = m.user_reactions.filter(r=>r!==reaction); else m.user_reactions.push(reaction); renderMessages(); } }
+    }
+    function showReactionPicker() { const p = document.getElementById('reactionsPicker'); p.innerHTML = ''; ['❤️','🔥','👍','👎','👌','🖕','👀','😁','😭','😔','😩','😳','😠','😨','💩','👻','👽','👾','💋','💊'].forEach(e=>{ const b=document.createElement('button'); b.textContent=e; b.onclick=()=>{ addReaction(currentReactionMessage,e); document.getElementById('reactionPickerModal').style.display='none'; }; p.appendChild(b); }); document.getElementById('reactionPickerModal').style.display='flex'; }
+    function sendMessage() { const inp = document.getElementById('messageInput'); const text = inp.value.trim(); if(!text && !replyingTo && !editingMessage) return; if(!currentChatId) return; if(editingMessage) { editMessage(editingMessage.id, text); editingMessage=null; inp.value=''; autoResize(inp); hideEditIndicator(); inp.focus(); return; } fetch('/chat-message',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({chat_id:currentChatId, nick:currentUser.nick, text, reply_to_id:replyingTo?.messageId})}); replyingTo=null; hideReplyIndicator(); inp.value=''; autoResize(inp); onTyping(false); inp.focus(); }
+    async function editMessage(id, newText) { await fetch('/edit-message',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messageId:id, nick:currentUser.nick, newText})}); }
+    function showContextMenu(msg, own) {
+        document.getElementById('contextMessageNick').innerHTML = escapeHtml(msg.nick);
+        document.getElementById('contextMessagePreview').innerHTML = linkify(escapeHtml((msg.text||'').slice(0,150)))+((msg.text||'').length>150?'…':'');
+        const cont = document.getElementById('contextMenuButtons');
+        let html = `<button id="ctx-react"><svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>Реакция</button>`;
+        html += `<button id="ctx-reply"><svg viewBox="0 0 24 24"><path d="M3 10h10a8 8 0 0 1 8 8v2M3 10l6 6M3 10l6-6"/></svg>Ответить</button>`;
+        if(own) html += `<button id="ctx-edit"><svg viewBox="0 0 24 24"><path d="M17 3l4 4-7 7H10v-4l7-7z"/><path d="M4 20h16"/></svg>Редактировать</button>`;
+        html += `<button id="ctx-copy"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Скопировать</button>`;
+        if(own) html += `<button id="ctx-delete"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>Удалить</button>`;
+        html += `<button id="ctx-close"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Закрыть</button>`;
+        cont.innerHTML = html;
+        const modal = document.getElementById('contextMenuModal');
+        document.getElementById('ctx-react').onclick = ()=>{ currentReactionMessage=msg.id; showReactionPicker(); modal.style.display='none'; };
+        document.getElementById('ctx-reply').onclick = ()=>{ if(editingMessage){editingMessage=null;hideEditIndicator();} replyingTo={messageId:msg.id,nick:msg.nick,text:msg.text}; showReplyIndicator(replyingTo); modal.style.display='none'; document.getElementById('messageInput').focus(); };
+        if(own) document.getElementById('ctx-edit').onclick = ()=>{ if(replyingTo){replyingTo=null;hideReplyIndicator();} editingMessage={id:msg.id,text:msg.text}; showEditIndicator(editingMessage); const inp=document.getElementById('messageInput'); inp.value=msg.text; inp.focus(); modal.style.display='none'; };
+        document.getElementById('ctx-copy').onclick = ()=>{ navigator.clipboard.writeText(msg.text); modal.style.display='none'; };
+        if(own) document.getElementById('ctx-delete').onclick = ()=>{ pendingDeleteMessageId=msg.id; showConfirm('Удалить сообщение?', async ()=>{ await fetch('/delete-message',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messageId:pendingDeleteMessageId, nick:currentUser.nick})}); pendingDeleteMessageId=null; }); modal.style.display='none'; };
+        document.getElementById('ctx-close').onclick = ()=> modal.style.display='none';
+        modal.style.display='flex';
+    }
+    function showReplyIndicator(r) { let ind = document.getElementById('replyIndicator'); if(!ind) { ind = document.createElement('div'); ind.id='replyIndicator'; ind.className='reply-indicator'; ind.innerHTML = `<div class="reply-content"><div class="reply-nick"></div><div class="reply-text"></div></div><button class="cancel-reply">✕</button>`; document.querySelector('.input-wrapper').before(ind); ind.querySelector('.cancel-reply').onclick=()=>{replyingTo=null;ind.style.display='none';}; } ind.querySelector('.reply-nick').innerHTML = escapeHtml(r.nick); ind.querySelector('.reply-text').innerHTML = escapeHtml(r.text); ind.style.display='flex'; }
+    function hideReplyIndicator() { const i=document.getElementById('replyIndicator'); if(i) i.style.display='none'; }
+    function showEditIndicator(e) { let ind = document.getElementById('editIndicator'); if(!ind) { ind = document.createElement('div'); ind.id='editIndicator'; ind.className='edit-indicator'; ind.innerHTML = `<div class="edit-content"><div class="edit-label">Редактирование</div><div class="edit-text"></div></div><button class="cancel-edit">✕</button>`; document.querySelector('.input-wrapper').before(ind); ind.querySelector('.cancel-edit').onclick=()=>{editingMessage=null;ind.style.display='none';document.getElementById('messageInput').value='';}; } ind.querySelector('.edit-text').innerHTML = escapeHtml(e.text); ind.style.display='flex'; }
+    function hideEditIndicator() { const i=document.getElementById('editIndicator'); if(i) i.style.display='none'; }
+    function updateTypingIndicator(data) { const i=document.getElementById('typingIndicator'); if(!i) return; if(!data||data.nick===currentUser.nick) i.classList.add('hidden'); else { i.innerHTML = `${escapeHtml(data.nick)} печатает...`; i.classList.remove('hidden'); clearTimeout(window.typeHide); window.typeHide = setTimeout(()=>i.classList.add('hidden'),2000); } }
+    function onTyping(is) { if(!socket||!currentChatId) return; if(is) { socket.emit('typing',{chatId:currentChatId, nick:currentUser.nick}); clearTimeout(typingTimeout); typingTimeout=setTimeout(()=>socket.emit('stop typing',{chatId:currentChatId}),1500); } else { clearTimeout(typingTimeout); socket.emit('stop typing',{chatId:currentChatId}); } }
+    function scrollToMessage(id) { const el=document.querySelector(`.message-item[data-id="${id}"] .message-text`); if(el) { el.scrollIntoView({behavior:'smooth',block:'center'}); el.classList.add('highlight'); setTimeout(()=>el.classList.remove('highlight'),4000); } }
+    function autoResize(ta) { ta.style.height='auto'; ta.style.height = Math.min(ta.scrollHeight,150)+'px'; }
+
+    async function initializeApp() {
+        document.getElementById('showDateToggle').checked = appSettings.showDate;
+        document.getElementById('showReactionsToggle').checked = appSettings.showReactions;
+        document.getElementById('showTimeToggle').checked = appSettings.showTime;
+        document.getElementById('showBadgesToggle').checked = appSettings.showBadges;
+        document.getElementById('badgeSelect').value = currentUser.badge||'';
+        document.getElementById('accentColorSelect').value = appSettings.accentColor;
+        document.getElementById('showDateToggle').onchange = e=>{ appSettings.showDate=e.target.checked; localStorage.setItem('chatxlite_settings',JSON.stringify(appSettings)); renderMessages(); };
+        document.getElementById('showReactionsToggle').onchange = e=>{ appSettings.showReactions=e.target.checked; localStorage.setItem('chatxlite_settings',JSON.stringify(appSettings)); renderMessages(); };
+        document.getElementById('showTimeToggle').onchange = e=>{ appSettings.showTime=e.target.checked; localStorage.setItem('chatxlite_settings',JSON.stringify(appSettings)); renderMessages(); };
+        document.getElementById('showBadgesToggle').onchange = e=>{ appSettings.showBadges=e.target.checked; localStorage.setItem('chatxlite_settings',JSON.stringify(appSettings)); renderMessages(); };
+        document.getElementById('badgeSelect').onchange = async e=>{ currentUser.badge=e.target.value; await fetch('/update-badge',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:authToken, badge:currentUser.badge})}); renderMessages(); };
+        document.getElementById('accentColorSelect').onchange = e=>{ appSettings.accentColor=e.target.value; localStorage.setItem('chatxlite_settings',JSON.stringify(appSettings)); document.documentElement.style.setProperty('--accent-color',e.target.value); };
+        await initChat();
+
+        socket.on('chat message received', newMsg=>{ if(currentChatId===newMsg.chat_id) { messages.push(newMsg); renderMessages(); } });
+        socket.on('message deleted', id=>{ messages=messages.filter(m=>m.id!==id); renderMessages(); });
+        socket.on('message edited', ({messageId,newText})=>{ const m=messages.find(m=>m.id===messageId); if(m){m.text=newText; m.edited=true; renderMessages();} });
+        socket.on('reaction updated', ({messageId,reactions})=>{ const m=messages.find(m=>m.id===messageId); if(m){m.reactions=reactions; renderMessages();} });
+        socket.on('user typing', d=>{ if(d.chatId===currentChatId) updateTypingIndicator(d); });
+        socket.on('user stop typing', d=>{ if(d.chatId===currentChatId) updateTypingIndicator(null); });
+        // 👇 ИСПРАВЛЕНИЕ: при смене своего ника перезагружаем сообщения
+        socket.on('nick changed', ({oldNick,newNick})=>{
+            if(currentUser.nick === oldNick) {
+                currentUser.nick = newNick;
+            }
+            // Если сменили свой ник, перезагружаем сообщения
+            if(currentUser.nick === newNick) {
+                loadMessages().then(renderMessages);
+            }
+        });
+    }
+
+    function bindUI() {
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+                btn.classList.add('active');
+                document.getElementById(btn.dataset.tab).classList.add('active');
+            });
+        });
+
+        const settingsModal = document.getElementById('settingsModal');
+        const openSettingsBtn = document.getElementById('openSettingsBtn');
+        const closeSettingsBtn = document.getElementById('closeSettingsModalBtn');
+
+        openSettingsBtn.onclick = () => settingsModal.style.display = 'flex';
+        closeSettingsBtn.onclick = () => settingsModal.style.display = 'none';
+
+        const modalContent = document.getElementById('settingsModalContent');
+        let touchStartX = 0;
+        modalContent.addEventListener('touchstart', e => { touchStartX = e.changedTouches[0].screenX; }, {passive: true});
+        modalContent.addEventListener('touchend', e => {
+            const diff = e.changedTouches[0].screenX - touchStartX;
+            if (diff > 70) settingsModal.style.display = 'none';
+        });
+
+        document.getElementById('openChangeNickModalBtn').onclick = ()=>{ document.getElementById('changeNickModal').style.display='flex'; document.getElementById('newNickInput').value=''; };
+        document.getElementById('cancelNickChangeBtn').onclick = ()=> document.getElementById('changeNickModal').style.display='none';
+        document.getElementById('applyNickChangeBtn').onclick = async ()=>{
+            const nn = document.getElementById('newNickInput').value.trim();
+            if(!nn) return;
+            const r = await fetch('/change-nick',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:authToken,newNick:nn})});
+            const d = await r.json();
+            if(d.success){ currentUser.nick=d.newNick; document.getElementById('changeNickModal').style.display='none'; showAlert('Ник изменён'); }
+            else showAlert(d.error);
+        };
+        document.getElementById('changePinBtn').onclick = ()=>{ settingsModal.style.display='none'; document.getElementById('changePinModal').style.display='flex'; };
+        document.getElementById('logoutBtn').onclick = ()=>{ showConfirm('Выйти из аккаунта?', ()=>{ localStorage.removeItem('chatxlite_token'); location.reload(); }); };
+        document.getElementById('deleteAccountBtn').onclick = ()=>{
+            document.getElementById('pinConfirmModal').style.display='flex';
+            document.getElementById('pinConfirmInput').value='';
+            pendingAction='delete_account';
+        };
+        document.getElementById('applyPinBtn').onclick = async ()=>{
+            const o=document.getElementById('oldPinInput').value, n=document.getElementById('newPinInput').value;
+            if(!o||!n||n.length!==4||!/^\d+$/.test(n)) return showAlert('PIN должен быть 4 цифры');
+            const r=await fetch('/change-pin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:authToken,oldPin:o,newPin:n})});
+            const d=await r.json();
+            if(d.success){ showAlert('PIN изменён'); document.getElementById('changePinModal').style.display='none'; }
+            else showAlert(d.error);
+        };
+        document.getElementById('cancelPinBtn').onclick = ()=> document.getElementById('changePinModal').style.display='none';
+        document.getElementById('pinConfirmOkBtn').onclick = async ()=>{
+            const pin = document.getElementById('pinConfirmInput').value;
+            if(!pin) return;
+            if(pendingAction==='delete_account'){
+                const r=await fetch('/delete-account',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:authToken,pin})});
+                const d=await r.json();
+                if(d.success){ localStorage.removeItem('chatxlite_token'); location.reload(); }
+                else showAlert(d.error||'Ошибка');
+            }
+            document.getElementById('pinConfirmModal').style.display='none'; pendingAction=null;
+        };
+        document.getElementById('pinConfirmCancelBtn').onclick = ()=>{ document.getElementById('pinConfirmModal').style.display='none'; pendingAction=null; };
+        document.getElementById('closeReactionPickerBtn').onclick = ()=> document.getElementById('reactionPickerModal').style.display='none';
+        document.getElementById('sendBtn').onclick = sendMessage;
+        const inp = document.getElementById('messageInput'); inp.addEventListener('input', ()=>{ autoResize(inp); onTyping(true); });
+    }
+
+    const token = localStorage.getItem('chatxlite_token');
+    if(token) {
+        fetch('/verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token})}).then(r=>r.json()).then(async d=>{
+            if(d.success) {
+                currentUser.nick = d.nick;
+                currentUser.badge = d.badge || '';
+                authToken = token;
+                document.getElementById('loginScreen').style.display = 'none';
+                document.getElementById('appContainer').style.display = 'flex';
+                socket = io();
+                socket.emit('user online', currentUser.nick);
+                bindUI();
+                await initializeApp();
+            } else {
+                localStorage.removeItem('chatxlite_token');
+                document.getElementById('loginScreen').style.display = 'flex';
+            }
+        });
+    } else {
+        document.getElementById('loginScreen').style.display = 'flex';
+    }
+
+    document.getElementById('loginBtn').onclick = async ()=>{
+        const nick = document.getElementById('loginNick').value.trim(), pin = document.getElementById('loginPin').value;
+        if(!nick||!pin||pin.length!==4||!/^\d+$/.test(pin)) return document.getElementById('loginError').innerText='Введите ник и 4-значный PIN';
+        const r = await fetch('/auth',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nick,pin})});
+        const d = await r.json();
+        if(d.success) {
+            currentUser.nick = d.nick;
+            currentUser.badge = d.badge || '';
+            authToken = d.token;
+            localStorage.setItem('chatxlite_token', authToken);
+            document.getElementById('loginScreen').style.display = 'none';
+            document.getElementById('appContainer').style.display = 'flex';
+            socket = io();
+            socket.emit('user online', currentUser.nick);
+            bindUI();
+            await initializeApp();
+        } else {
+            document.getElementById('loginError').innerText = d.error||'Ошибка входа';
+        }
+    };
+});
+</script>
+</body>
+</html>
