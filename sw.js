@@ -1,7 +1,6 @@
-const CACHE_NAME = 'chatx-v1';
+const CACHE_NAME = 'chatx-v2';
 const urlsToCache = [
   '/',
-  '/index.html',
   '/manifest.json',
   '/favicon.ico',
   'https://cdn.socket.io/4.6.1/socket.io.min.js'
@@ -28,7 +27,12 @@ self.addEventListener('activate', event => {
 });
 
 self.addEventListener('fetch', event => {
-  // Не кэшируем запросы к API и WebSocket
+  // Для HTML всегда сеть, чтобы получать свежую версию
+  if (event.request.mode === 'navigate') {
+    event.respondWith(fetch(event.request).catch(() => caches.match('/')));
+    return;
+  }
+  // Для API и WebSocket не кэшируем
   if (event.request.url.includes('/socket.io/') || 
       event.request.url.includes('/auth') ||
       event.request.url.includes('/verify') ||
