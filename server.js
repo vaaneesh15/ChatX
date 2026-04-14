@@ -55,10 +55,9 @@ async function initDB() {
     );
   `);
 
-  // Удаляем колонку who_can_invite, если осталась
   try { await pool.query(`ALTER TABLE users DROP COLUMN IF EXISTS who_can_invite`); } catch (e) {}
 
-  // Таблица chats (без owner_nick и без типа 'group')
+  // Таблица chats (без owner_nick и типа 'group')
   await pool.query(`
     CREATE TABLE IF NOT EXISTS chats (
       id SERIAL PRIMARY KEY,
@@ -80,7 +79,7 @@ async function initDB() {
     );
   `);
 
-  // Таблица messages
+  // Таблица messages (с поддержкой audio)
   await pool.query(`
     CREATE TABLE IF NOT EXISTS messages (
       id SERIAL PRIMARY KEY,
@@ -97,6 +96,11 @@ async function initDB() {
       created_at TIMESTAMP DEFAULT NOW()
     );
   `);
+
+  const msgCols = ['type', 'file_url', 'file_name', 'file_size', 'duration'];
+  for (const col of msgCols) {
+    try { await pool.query(`ALTER TABLE messages ADD COLUMN IF NOT EXISTS ${col} ${col === 'type' ? "VARCHAR(20) DEFAULT 'text'" : (col === 'duration' ? 'INTEGER' : 'TEXT')}`); } catch (e) {}
+  }
 
   // Таблица message_reactions
   await pool.query(`
@@ -139,7 +143,7 @@ async function initDB() {
     );
   `);
 
-  // Удаляем таблицу group_participants, если осталась
+  // Удаляем таблицы групп
   try { await pool.query(`DROP TABLE IF EXISTS group_participants CASCADE`); } catch (e) {}
 
   // Публичный чат
@@ -170,7 +174,7 @@ async function getOrCreateNotebook(nick) {
   return notebook.rows[0].id;
 }
 
-// Эндпоинты (полностью совместимы с клиентом)
+// Эндпоинты
 app.post('/upload', upload.single('file'), (req, res) => {
   if (!req.file) return res.status(400).json({ success: false });
   res.json({ success: true, file: req.file });
@@ -399,16 +403,7 @@ app.get('/chats', async (req, res) => {
     chat.last_message = lastMsg.rows[0] || null;
   }
   
-  chats.sort((a, b) => {
-    if (a.type === 'public') return -1;
-    if (b.type === 'public') return 1;
-    if (a.type === 'notebook') return -1;
-    if (b.type === 'notebook') return 1;
-    const aTime = a.last_message ? new Date(a.last_message.created_at).getTime() : 0;
-    const bTime = b.last_message ? new Date(b.last_message.created_at).getTime() : 0;
-    return bTime - aTime;
-  });
-  
+  // Сортировка: сначала закреплённые обрабатывается на клиенте, но порядок для сервера не важен
   res.json(chats);
 });
 
