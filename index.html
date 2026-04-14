@@ -166,14 +166,13 @@
         .tab-pane.active { display:block; }
         .empty-state { color:var(--text-secondary); text-align:center; padding:2rem 0; }
         .dragging { transition: none; }
-        .audio-message { display:flex; flex-direction:column; gap:8px; }
         .audio-player { display:flex; align-items:center; gap:12px; margin-top:8px; }
-        .audio-player .play-btn { background:none; border:none; color:var(--text-primary); width:40px; height:40px; display:flex; align-items:center; justify-content:center; }
-        .audio-player .progress-container { flex:1; height:4px; background:var(--border-light); border-radius:2px; position:relative; }
-        .audio-player .progress-fill { height:100%; background:var(--accent-color); border-radius:2px; width:0%; }
-        .audio-player .time-display { font-size:0.8rem; color:var(--text-secondary); min-width:80px; text-align:right; }
-        .audio-download-btn { background:none; border:none; color:var(--text-secondary); padding:4px; }
-        .modal-stack { z-index:10002; }
+        .audio-play-btn { background:var(--accent-color); border:none; width:2.8rem; height:2.8rem; border-radius:2rem; color:white; display:flex; align-items:center; justify-content:center; }
+        .audio-progress-container { flex:1; height:4px; background:var(--border-light); border-radius:2px; position:relative; }
+        .audio-progress-fill { height:100%; background:var(--accent-color); border-radius:2px; width:0%; }
+        .audio-download-btn { background:var(--bg-page); border:1px solid var(--border-light); width:2.8rem; height:2.8rem; border-radius:2rem; color:var(--text-primary); display:flex; align-items:center; justify-content:center; }
+        .audio-download-btn svg { width:1.5rem; height:1.5rem; stroke:currentColor; stroke-width:1.5; fill:none; }
+        .modal-stack { z-index:10002 !important; }
     </style>
 </head>
 <body>
@@ -241,7 +240,7 @@
     </div>
 </div>
 
-<!-- Модальные окна -->
+<!-- Модалки -->
 <div id="confirmModal" class="modal"><div class="modal-overlay"></div><div class="modal-container"><div class="modal-content"><h3 id="confirmTitle">Подтверждение</h3><p id="confirmMessage">Вы уверены?</p><div class="modal-buttons"><button id="confirmCancelBtn">Отмена</button><button id="confirmOkBtn">OK</button></div></div></div></div>
 <div id="pinConfirmModal" class="modal"><div class="modal-overlay"></div><div class="modal-container"><div class="modal-content"><h3>Введите PIN</h3><div class="modal-setting"><input type="password" id="pinConfirmInput" placeholder="PIN" maxlength="4"></div><div class="modal-buttons"><button id="pinConfirmCancelBtn">Отмена</button><button id="pinConfirmOkBtn">Подтвердить</button></div></div></div></div>
 <div id="reactionPickerModal" class="modal fullscreen"><div class="modal-overlay"></div><div class="modal-container"><div class="modal-content"><h3>Реакция</h3><div class="reactions-picker" id="reactionsPicker"></div><div class="modal-buttons"><button id="closeReactionPickerBtn">Закрыть</button></div></div></div></div>
@@ -258,6 +257,7 @@
 
 <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
 <script>
+// === ЧИСТЫЙ РАБОЧИЙ JS СО ВСЕМИ ФУНКЦИЯМИ ===
 (function() {
     function addTapped(e) { const t = e.target.closest?.('button, .clickable'); if (t) t.classList.add('tapped'); }
     function removeTapped(e) { const t = e.target.closest?.('button, .clickable'); if (t) t.classList.remove('tapped'); }
@@ -299,35 +299,28 @@ document.addEventListener('DOMContentLoaded', function() {
 
     document.documentElement.style.setProperty('--accent-color', appSettings.accentColor);
 
-    // Управление модальными окнами
-    let modalZ = 10000;
+    // === МОДАЛКИ ===
     function showModal(modalId) {
-        const modal = $(modalId);
-        if (!modal) return;
-        modal.style.zIndex = ++modalZ;
+        const modal = $(modalId); if (!modal) return;
         modal.style.display = 'flex';
         setTimeout(() => modal.classList.add('show'), 10);
     }
     function hideModal(modalId) {
-        const modal = $(modalId);
-        if (!modal) return;
+        const modal = $(modalId); if (!modal) return;
         modal.classList.remove('show');
         setTimeout(() => { if (!modal.classList.contains('show')) modal.style.display = 'none'; }, 200);
     }
     function openFullscreenModal(modalId) {
-        const modal = $(modalId);
-        if (!modal) return;
-        modal.style.zIndex = ++modalZ;
+        const modal = $(modalId); if (!modal) return;
+        modal.style.zIndex = '10001';
         showModal(modalId);
     }
 
     function showConfirm(message, onOk, title = 'Подтверждение') {
-        $('confirmTitle').innerText = title;
-        $('confirmMessage').innerText = message;
+        $('confirmTitle').innerText = title; $('confirmMessage').innerText = message;
         showModal('confirmModal');
-        const okBtn = $('confirmOkBtn'), cancelBtn = $('confirmCancelBtn');
-        okBtn.onclick = () => { hideModal('confirmModal'); if(onOk) onOk(); };
-        cancelBtn.onclick = () => hideModal('confirmModal');
+        $('confirmOkBtn').onclick = () => { hideModal('confirmModal'); if(onOk) onOk(); };
+        $('confirmCancelBtn').onclick = () => hideModal('confirmModal');
     }
     function showAlert(message, onClose) { showConfirm(message, onClose, ' '); $('confirmTitle').style.display='none'; }
 
@@ -347,21 +340,18 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     function hasUnreadMessages(chat) { if(!chat.last_message) return false; if(chat.last_message.nick === currentUser.nick) return false; const lastId = chat.last_message.id, readId = lastReadMessage[chat.id]||0; return lastId > readId; }
 
-    // Свайп (слева направо)
+    // === СВАЙП ===
     function initSwipeToClose(element, onClose) {
         if (!element) return;
         let startX = 0, currentX = 0, isDragging = false;
         const threshold = 100;
         element.addEventListener('touchstart', e => {
             if (e.touches[0].clientX > 30) return;
-            startX = e.touches[0].clientX;
-            isDragging = true;
-            element.classList.add('dragging');
+            startX = e.touches[0].clientX; isDragging = true; element.classList.add('dragging');
         }, {passive: true});
         element.addEventListener('touchmove', e => {
             if (!isDragging) return;
-            currentX = e.touches[0].clientX;
-            const diff = currentX - startX;
+            currentX = e.touches[0].clientX; const diff = currentX - startX;
             if (diff > 0) {
                 element.style.transform = `translateX(${diff}px)`;
                 const overlay = element.closest('.modal')?.querySelector('.modal-overlay');
@@ -370,8 +360,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }, {passive: true});
         element.addEventListener('touchend', e => {
             if (!isDragging) return;
-            isDragging = false;
-            element.classList.remove('dragging');
+            isDragging = false; element.classList.remove('dragging');
             const diff = currentX - startX;
             element.style.transform = '';
             const overlay = element.closest('.modal')?.querySelector('.modal-overlay');
@@ -381,7 +370,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Навигация
+    // === НАВИГАЦИЯ ===
     function showTab(tabId) {
         document.querySelectorAll('.panel').forEach(p => p.style.display = 'none');
         const panel = $(tabId+'Panel'); if (panel) panel.style.display = 'flex';
@@ -418,7 +407,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     async function loadChatMessages() { if(!currentChat.id) return; try { const r = await fetch(`/chat-messages?chat_id=${currentChat.id}&nick=${encodeURIComponent(currentUser.nick)}`); messages = await r.json(); } catch(e){} }
 
-    // Список чатов
+    // === ЧАТЫ ===
     async function loadChatsList() {
         try { const r = await fetch(`/chats?nick=${encodeURIComponent(currentUser.nick)}`); chatsList = await r.json();
             chatsList.forEach(c => { c.pinned = pinnedChats.includes(c.id); if (c.type === 'notebook') notebookChatId = c.id; });
@@ -469,7 +458,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Меню чата
     async function openChatMenu(chatId, other, type) {
         const cont = $('chatMenuButtons');
         const isPinned = pinnedChats.includes(chatId), isMuted = mutedChats.includes(chatId);
@@ -504,7 +492,7 @@ document.addEventListener('DOMContentLoaded', function() {
         showModal('chatMenuModal');
     }
 
-    // Контакты
+    // === КОНТАКТЫ И ПОИСК ===
     async function loadContacts() { try { const r=await fetch(`/contacts?nick=${encodeURIComponent(currentUser.nick)}`); contacts=await r.json(); renderContactsList(); } catch(e){} }
     function renderContactsList() {
         const cont = $('contactsListContainer'), q = contactsSearchQuery.toLowerCase();
@@ -539,7 +527,7 @@ document.addEventListener('DOMContentLoaded', function() {
         document.querySelectorAll('.contact-name, .user-badge').forEach(el=>el.addEventListener('click',()=>showUserProfile(el.closest('.contact-item').querySelector('.contact-name').innerText)));
     }
 
-    // Профиль пользователя
+    // === ПРОФИЛЬ ПОЛЬЗОВАТЕЛЯ ===
     async function showUserProfile(nick) {
         const r = await fetch(`/user-profile?nick=${encodeURIComponent(nick)}`); const d = await r.json();
         $('profileNick').innerText = d.nick;
@@ -571,90 +559,37 @@ document.addEventListener('DOMContentLoaded', function() {
         openFullscreenModal('userProfileModal');
     }
 
-    // Аудиоплеер (обновлённый)
+    // === АУДИОПЛЕЕР ===
     function renderAudioPlayer(msg) {
-        const displayName = truncateFileName(msg.file_name);
-        const container = document.createElement('div');
-        container.className = 'audio-message';
-        container.style.display = 'flex';
-        container.style.flexDirection = 'column';
-        container.style.gap = '8px';
-
-        // Верхняя строка: иконка и название файла
-        const headerDiv = document.createElement('div');
-        headerDiv.style.display = 'flex';
-        headerDiv.style.alignItems = 'center';
-        headerDiv.style.gap = '8px';
-        headerDiv.innerHTML = `<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="var(--text-secondary)" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
-                              <span class="file-name" style="color:var(--text-primary);">${escapeHtml(displayName)}</span>`;
-        container.appendChild(headerDiv);
-
-        // Нижняя строка: плеер и кнопка скачать
-        const controlsDiv = document.createElement('div');
-        controlsDiv.style.display = 'flex';
-        controlsDiv.style.alignItems = 'center';
-        controlsDiv.style.gap = '8px';
-
+        const playerDiv = document.createElement('div'); playerDiv.className = 'audio-player';
         const audio = new Audio(msg.file_url);
         let isPlaying = false;
+        const playBtn = document.createElement('button'); playBtn.className = 'audio-play-btn';
+        playBtn.innerHTML = '<svg viewBox="0 0 24 24" width="24" height="24"><polygon points="5 3 19 12 5 21 5 3" fill="white"/></svg>';
+        const progressContainer = document.createElement('div'); progressContainer.className = 'audio-progress-container';
+        const progressFill = document.createElement('div'); progressFill.className = 'audio-progress-fill';
+        progressContainer.appendChild(progressFill);
+        const downloadBtn = document.createElement('button'); downloadBtn.className = 'audio-download-btn';
+        downloadBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>';
+        downloadBtn.onclick = () => window.open(msg.file_url, '_blank');
 
-        // Кнопка play/pause (стиль как send-btn)
-        const playBtn = document.createElement('button');
-        playBtn.className = 'send-btn';
-        playBtn.style.width = '40px';
-        playBtn.style.height = '40px';
-        playBtn.style.padding = '0';
-        playBtn.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20"><polygon points="5 3 19 12 5 21 5 3" fill="currentColor"/></svg>';
-        playBtn.onclick = (e) => {
-            e.stopPropagation();
-            if (isPlaying) {
-                audio.pause();
-                playBtn.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20"><polygon points="5 3 19 12 5 21 5 3" fill="currentColor"/></svg>';
-            } else {
-                audio.play();
-                playBtn.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20"><rect x="6" y="4" width="4" height="16" fill="currentColor"/><rect x="14" y="4" width="4" height="16" fill="currentColor"/></svg>';
-            }
+        playBtn.onclick = () => {
+            if (isPlaying) { audio.pause(); playBtn.innerHTML = '<svg viewBox="0 0 24 24" width="24" height="24"><polygon points="5 3 19 12 5 21 5 3" fill="white"/></svg>'; }
+            else { audio.play(); playBtn.innerHTML = '<svg viewBox="0 0 24 24" width="24" height="24"><rect x="6" y="4" width="4" height="16" fill="white"/><rect x="14" y="4" width="4" height="16" fill="white"/></svg>'; }
             isPlaying = !isPlaying;
         };
-        controlsDiv.appendChild(playBtn);
-
-        // Прогресс-бар
-        const progressContainer = document.createElement('div');
-        progressContainer.className = 'progress-container';
-        progressContainer.style.flex = '1';
-        const progressFill = document.createElement('div');
-        progressFill.className = 'progress-fill';
-        progressContainer.appendChild(progressFill);
-        controlsDiv.appendChild(progressContainer);
-
         audio.addEventListener('timeupdate', () => {
             const progress = (audio.currentTime / audio.duration) * 100;
             progressFill.style.width = `${progress}%`;
         });
-        audio.addEventListener('ended', () => {
-            playBtn.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20"><polygon points="5 3 19 12 5 21 5 3" fill="currentColor"/></svg>';
-            isPlaying = false;
-        });
-
-        // Кнопка скачать (стиль как attach-btn)
-        const downloadBtn = document.createElement('button');
-        downloadBtn.className = 'attach-btn';
-        downloadBtn.style.width = '40px';
-        downloadBtn.style.height = '40px';
-        downloadBtn.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>';
-        downloadBtn.onclick = (e) => {
-            e.stopPropagation();
-            const a = document.createElement('a');
-            a.href = msg.file_url;
-            a.download = msg.file_name;
-            a.click();
-        };
-        controlsDiv.appendChild(downloadBtn);
-
-        container.appendChild(controlsDiv);
-        return container;
+        audio.addEventListener('ended', () => { playBtn.innerHTML = '<svg viewBox="0 0 24 24" width="24" height="24"><polygon points="5 3 19 12 5 21 5 3" fill="white"/></svg>'; isPlaying = false; });
+        playerDiv.appendChild(playBtn);
+        playerDiv.appendChild(progressContainer);
+        playerDiv.appendChild(downloadBtn);
+        return playerDiv;
     }
 
+    // === РЕНДЕР СООБЩЕНИЙ ===
     function renderMessages() {
         const cont = $('messagesContainer'); if(!cont) return;
         const wasNearBottom = cont.scrollHeight - cont.scrollTop - cont.clientHeight < 200;
@@ -674,6 +609,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 const displayName = truncateFileName(msg.file_name);
                 content = `<div class="file-message"><div class="file-icon">📎</div><div class="file-info"><div class="file-name">${escapeHtml(displayName)}</div><div class="file-size">${formatFileSize(msg.file_size)}</div></div><button class="open-file-btn" data-url="${msg.file_url}">Открыть</button></div>`;
             } else if (msg.type === 'audio') {
+                const displayName = truncateFileName(msg.file_name);
+                content = `<div class="file-message"><div class="file-icon"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="var(--text-secondary)" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></div><div class="file-info"><div class="file-name">${escapeHtml(displayName)}</div></div></div>`;
                 const player = renderAudioPlayer(msg);
                 div.appendChild(player);
             } else content = `<div class="message-text">${linkify(escapeHtml(msg.text||''))}</div>`;
@@ -743,60 +680,146 @@ document.addEventListener('DOMContentLoaded', function() {
     function scrollToMessage(id) { const el=document.querySelector(`.message-item[data-id="${id}"] .message-text`); if(el) { el.scrollIntoView({behavior:'smooth',block:'center'}); el.classList.add('highlight'); setTimeout(()=>el.classList.remove('highlight'),4000); } }
     function autoResize(ta) { ta.style.height='auto'; ta.style.height = Math.min(ta.scrollHeight,150)+'px'; }
 
-    $('attachBtn').onclick = ()=>{ const inp = document.createElement('input'); inp.type='file'; inp.accept='*/*'; inp.onchange = async e => { const f = e.target.files[0]; if(!f) return; const fd = new FormData(); fd.append('file',f); const r=await fetch('/upload',{method:'POST',body:fd}); const d=await r.json(); if(d.success) { const type = f.type.startsWith('audio/') ? 'audio' : (f.type.startsWith('image/')||f.type.startsWith('video/')?'media':'file'); fetch('/chat-message',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({chat_id:currentChat.id, nick:currentUser.nick, type, file_url:'/uploads/'+d.file.filename, file_name:f.name, file_size:f.size})}); } }; inp.click(); };
+    // === ОТПРАВКА СООБЩЕНИЙ ===
+    function sendMessage() {
+        const inp = $('messageInput'); const text = inp.value.trim();
+        if(!text && !replyingTo && !editingMessage) return;
+        if(!currentChat.id) return;
+        if(editingMessage) {
+            editMessage(editingMessage.id, text);
+            editingMessage = null; inp.value = ''; autoResize(inp); hideEditIndicator(); inp.focus();
+            return;
+        }
+        fetch('/chat-message', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ chat_id: currentChat.id, nick: currentUser.nick, text, reply_to_id: replyingTo?.messageId, type: 'text' })
+        });
+        replyingTo = null; hideReplyIndicator();
+        inp.value = ''; autoResize(inp); onTyping(false); inp.focus();
+    }
+    async function editMessage(id, newText) {
+        await fetch('/edit-message', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ messageId: id, nick: currentUser.nick, newText }) });
+    }
 
-    // Настройки
-    async function loadPrivacySettings() { const r=await fetch(`/privacy-settings?nick=${encodeURIComponent(currentUser.nick)}`); const d=await r.json(); privacySettings=d; ['visibilitySelect','whoCanWriteSelect','descriptionVisibleSelect'].forEach(id=>{ const sel=$(id); if(sel) { sel.value=d[id.replace('Select','').replace(/([A-Z])/g,'_$1').toLowerCase()]||'all'; sel.onchange = async e=>{ const field=id.replace('Select','').replace(/([A-Z])/g,'_$1').toLowerCase(); privacySettings[field]=e.target.value; localStorage.setItem('privacy_settings',JSON.stringify(privacySettings)); await fetch('/update-privacy',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:authToken,field,value:e.target.value})}); }; } }); }
+    $('attachBtn').onclick = ()=>{
+        const inp = document.createElement('input'); inp.type = 'file'; inp.accept = '*/*';
+        inp.onchange = async e => {
+            const f = e.target.files[0]; if(!f) return;
+            const fd = new FormData(); fd.append('file', f);
+            const r = await fetch('/upload', { method: 'POST', body: fd });
+            const d = await r.json();
+            if(d.success) {
+                const type = f.type.startsWith('audio/') ? 'audio' : (f.type.startsWith('image/')||f.type.startsWith('video/')?'media':'file');
+                fetch('/chat-message', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ chat_id: currentChat.id, nick: currentUser.nick, type, file_url: '/uploads/'+d.file.filename, file_name: f.name, file_size: f.size })
+                });
+            }
+        };
+        inp.click();
+    };
+
+    // === НАСТРОЙКИ ===
+    async function loadPrivacySettings() {
+        const r = await fetch(`/privacy-settings?nick=${encodeURIComponent(currentUser.nick)}`);
+        const d = await r.json(); privacySettings = d;
+        ['visibilitySelect','whoCanWriteSelect','descriptionVisibleSelect'].forEach(id=>{
+            const sel = $(id); if(sel) {
+                sel.value = d[id.replace('Select','').replace(/([A-Z])/g,'_$1').toLowerCase()]||'all';
+                sel.onchange = async e => {
+                    const field = id.replace('Select','').replace(/([A-Z])/g,'_$1').toLowerCase();
+                    privacySettings[field] = e.target.value;
+                    localStorage.setItem('privacy_settings', JSON.stringify(privacySettings));
+                    await fetch('/update-privacy', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: authToken, field, value: e.target.value }) });
+                };
+            }
+        });
+    }
     function setupProfileModals() {
         $('openSelfExpressionBtn').onclick = ()=> openFullscreenModal('selfExpressionModal');
         $('closeSelfExpressionBtn').onclick = ()=> hideModal('selfExpressionModal');
         $('openChangeNickModalBtn').onclick = ()=>{ openFullscreenModal('changeNickModal'); $('newNickInput').value=''; };
         $('cancelNickChangeBtn').onclick = ()=> hideModal('changeNickModal');
-        $('applyNickChangeBtn').onclick = async ()=>{ const nn=$('newNickInput').value.trim(); if(!nn) return; const r=await fetch('/change-nick',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:authToken,newNick:nn})}); const d=await r.json(); if(d.success){ currentUser.nick=d.newNick; $('profileNickDisplay').innerText=d.newNick; hideModal('changeNickModal'); showAlert('Ник изменён'); } else showAlert(d.error); };
+        $('applyNickChangeBtn').onclick = async ()=>{
+            const nn = $('newNickInput').value.trim(); if(!nn) return;
+            const r = await fetch('/change-nick', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: authToken, newNick: nn }) });
+            const d = await r.json();
+            if(d.success){ currentUser.nick = d.newNick; $('profileNickDisplay').innerText = d.newNick; hideModal('changeNickModal'); showAlert('Ник изменён'); }
+            else showAlert(d.error);
+        };
         $('openDescriptionModalBtn').onclick = ()=>{ $('descriptionInput').value = currentUser.description||''; openFullscreenModal('descriptionModal'); };
         $('cancelDescriptionBtn').onclick = ()=> hideModal('descriptionModal');
-        $('applyDescriptionBtn').onclick = async ()=>{ const d=$('descriptionInput').value.trim(); await fetch('/update-description',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:authToken,description:d})}); currentUser.description=d; $('profileDescriptionDisplay').innerText=d; hideModal('descriptionModal'); };
+        $('applyDescriptionBtn').onclick = async ()=>{
+            const d = $('descriptionInput').value.trim();
+            await fetch('/update-description', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: authToken, description: d }) });
+            currentUser.description = d; $('profileDescriptionDisplay').innerText = d; hideModal('descriptionModal');
+        };
         $('openPrivacySettingsBtn').onclick = ()=> openFullscreenModal('privacySettingsModal');
         $('closePrivacySettingsBtn').onclick = ()=> hideModal('privacySettingsModal');
         $('changePinFromPrivacyBtn').onclick = ()=> openFullscreenModal('changePinModal');
-        $('logoutBtn').onclick = ()=>{ showConfirm('Выйти из аккаунта?', ()=>{ localStorage.removeItem('simply_token'); location.reload(); }); };
-        $('deleteAccountBtn').onclick = ()=>{ showModal('pinConfirmModal'); $('pinConfirmInput').value=''; pendingAction='delete_account'; };
+        $('logoutBtn').onclick = ()=> showConfirm('Выйти из аккаунта?', ()=>{ localStorage.removeItem('simply_token'); location.reload(); });
+        $('deleteAccountBtn').onclick = ()=> { showModal('pinConfirmModal'); $('pinConfirmInput').value=''; pendingAction='delete_account'; };
         $('openBlockedListBtn').onclick = ()=> { loadBlockedList(); openFullscreenModal('blockedListModal'); };
         $('openStyleSettingsBtn').onclick = ()=> openFullscreenModal('styleSettingsModal');
         $('closeStyleSettingsBtn').onclick = ()=> hideModal('styleSettingsModal');
-        $('applyPinBtn').onclick = async ()=>{ const o=$('oldPinInput').value, n=$('newPinInput').value; if(!o||!n||n.length!==4||!/^\d+$/.test(n)) return showAlert('PIN должен быть 4 цифры'); const r=await fetch('/change-pin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:authToken,oldPin:o,newPin:n})}); const d=await r.json(); if(d.success){ showAlert('PIN изменён'); hideModal('changePinModal'); } else showAlert(d.error); };
+        $('applyPinBtn').onclick = async ()=>{
+            const o=$('oldPinInput').value, n=$('newPinInput').value;
+            if(!o||!n||n.length!==4||!/^\d+$/.test(n)) return showAlert('PIN должен быть 4 цифры');
+            const r = await fetch('/change-pin', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: authToken, oldPin: o, newPin: n }) });
+            const d = await r.json();
+            if(d.success){ showAlert('PIN изменён'); hideModal('changePinModal'); }
+            else showAlert(d.error);
+        };
         $('cancelPinBtn').onclick = ()=> hideModal('changePinModal');
     }
-    $('pinConfirmOkBtn').onclick = async ()=>{ const pin = $('pinConfirmInput').value; if(!pin) return; if(pendingAction==='delete_account') { const r = await fetch('/delete-account',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:authToken,pin})}); const d = await r.json(); if(d.success) { localStorage.removeItem('simply_token'); location.reload(); } else showAlert(d.error||'Ошибка'); } hideModal('pinConfirmModal'); pendingAction=null; };
-    $('pinConfirmCancelBtn').onclick = ()=>{ hideModal('pinConfirmModal'); pendingAction=null; };
+    $('pinConfirmOkBtn').onclick = async ()=>{
+        const pin = $('pinConfirmInput').value; if(!pin) return;
+        if(pendingAction === 'delete_account') {
+            const r = await fetch('/delete-account', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: authToken, pin }) });
+            const d = await r.json();
+            if(d.success) { localStorage.removeItem('simply_token'); location.reload(); }
+            else showAlert(d.error||'Ошибка');
+        }
+        hideModal('pinConfirmModal'); pendingAction = null;
+    };
+    $('pinConfirmCancelBtn').onclick = ()=>{ hideModal('pinConfirmModal'); pendingAction = null; };
     $('closeReactionPickerBtn').onclick = ()=> hideModal('reactionPickerModal');
-    async function loadBlockedList() { const r=await fetch(`/blocked-list?nick=${encodeURIComponent(currentUser.nick)}`); const blocked=await r.json(); let html=''; blocked.forEach(b=>{ html+=`<div class="contact-item"><div class="contact-info">${escapeHtml(b.blocked_nick)}</div><div class="contact-actions"><button class="unblock-btn" data-nick="${b.blocked_nick}">Разблокировать</button></div></div>`; }); $('blockedListContainer').innerHTML=html||'<div class="empty-state">Список пуст</div>'; document.querySelectorAll('.unblock-btn').forEach(b=>b.onclick=async ()=>{ await fetch('/unblock-user',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user:currentUser.nick,blocked:b.dataset.nick})}); loadBlockedList(); }); }
+    async function loadBlockedList() {
+        const r = await fetch(`/blocked-list?nick=${encodeURIComponent(currentUser.nick)}`); const blocked = await r.json();
+        let html = '';
+        blocked.forEach(b=>{ html += `<div class="contact-item"><div class="contact-info">${escapeHtml(b.blocked_nick)}</div><div class="contact-actions"><button class="unblock-btn" data-nick="${b.blocked_nick}">Разблокировать</button></div></div>`; });
+        $('blockedListContainer').innerHTML = html || '<div class="empty-state">Список пуст</div>';
+        document.querySelectorAll('.unblock-btn').forEach(b=>b.onclick = async ()=>{ await fetch('/unblock-user', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user: currentUser.nick, blocked: b.dataset.nick }) }); loadBlockedList(); });
+    }
     $('closeBlockedListBtn').onclick = ()=> hideModal('blockedListModal');
 
-    // Инициализация
+    // === ИНИЦИАЛИЗАЦИЯ ===
     async function initializeApp() {
-        $('showDateToggle').checked = appSettings.showDate; $('showReactionsToggle').checked = appSettings.showReactions; $('showTimeToggle').checked = appSettings.showTime; $('showBadgesToggle').checked = appSettings.showBadges; $('badgeSelect').value = currentUser.badge||''; $('quickReactionSelect').value = appSettings.quickReaction||''; $('accentColorSelect').value = appSettings.accentColor;
-        $('showDateToggle').onchange = e=>{ appSettings.showDate=e.target.checked; localStorage.setItem('simply_settings',JSON.stringify(appSettings)); renderMessages(); renderChatsList(); };
-        $('showReactionsToggle').onchange = e=>{ appSettings.showReactions=e.target.checked; localStorage.setItem('simply_settings',JSON.stringify(appSettings)); renderMessages(); };
-        $('showTimeToggle').onchange = e=>{ appSettings.showTime=e.target.checked; localStorage.setItem('simply_settings',JSON.stringify(appSettings)); renderMessages(); renderChatsList(); };
-        $('showBadgesToggle').onchange = e=>{ appSettings.showBadges=e.target.checked; localStorage.setItem('simply_settings',JSON.stringify(appSettings)); renderMessages(); };
-        $('badgeSelect').onchange = async e=>{ currentUser.badge=e.target.value; await fetch('/update-badge',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:authToken, badge:currentUser.badge})}); renderMessages(); renderContactsList(); };
-        $('quickReactionSelect').onchange = e=>{ appSettings.quickReaction=e.target.value; localStorage.setItem('simply_settings',JSON.stringify(appSettings)); };
-        $('accentColorSelect').onchange = e=>{ appSettings.accentColor=e.target.value; localStorage.setItem('simply_settings',JSON.stringify(appSettings)); document.documentElement.style.setProperty('--accent-color',e.target.value); };
+        $('showDateToggle').checked = appSettings.showDate; $('showReactionsToggle').checked = appSettings.showReactions; $('showTimeToggle').checked = appSettings.showTime; $('showBadgesToggle').checked = appSettings.showBadges;
+        $('badgeSelect').value = currentUser.badge||''; $('quickReactionSelect').value = appSettings.quickReaction||''; $('accentColorSelect').value = appSettings.accentColor;
+        $('showDateToggle').onchange = e=>{ appSettings.showDate = e.target.checked; localStorage.setItem('simply_settings', JSON.stringify(appSettings)); renderMessages(); renderChatsList(); };
+        $('showReactionsToggle').onchange = e=>{ appSettings.showReactions = e.target.checked; localStorage.setItem('simply_settings', JSON.stringify(appSettings)); renderMessages(); };
+        $('showTimeToggle').onchange = e=>{ appSettings.showTime = e.target.checked; localStorage.setItem('simply_settings', JSON.stringify(appSettings)); renderMessages(); renderChatsList(); };
+        $('showBadgesToggle').onchange = e=>{ appSettings.showBadges = e.target.checked; localStorage.setItem('simply_settings', JSON.stringify(appSettings)); renderMessages(); };
+        $('badgeSelect').onchange = async e=>{ currentUser.badge = e.target.value; await fetch('/update-badge', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: authToken, badge: currentUser.badge }) }); renderMessages(); renderContactsList(); };
+        $('quickReactionSelect').onchange = e=>{ appSettings.quickReaction = e.target.value; localStorage.setItem('simply_settings', JSON.stringify(appSettings)); };
+        $('accentColorSelect').onchange = e=>{ appSettings.accentColor = e.target.value; localStorage.setItem('simply_settings', JSON.stringify(appSettings)); document.documentElement.style.setProperty('--accent-color', e.target.value); };
         await loadChatsList(); await loadContacts();
-        socket.on('chat message received', newMsg=>{ if(currentChat.id===newMsg.chat_id) { messages.push(newMsg); renderMessages(); lastReadMessage[currentChat.id]=newMsg.id; localStorage.setItem('last_read_message',JSON.stringify(lastReadMessage)); } loadChatsList(); });
-        socket.on('message deleted', id=>{ messages=messages.filter(m=>m.id!==id); renderMessages(); loadChatsList(); });
-        socket.on('message edited', ({messageId,newText})=>{ const m=messages.find(m=>m.id===messageId); if(m){m.text=newText; m.edited=true; renderMessages();} loadChatsList(); });
-        socket.on('reaction updated', ({messageId,reactions})=>{ const m=messages.find(m=>m.id===messageId); if(m){m.reactions=reactions; renderMessages();} });
-        socket.on('user typing', d=>{ if(d.chatId===currentChat.id) updateTypingIndicator(d); });
-        socket.on('user stop typing', d=>{ if(d.chatId===currentChat.id) updateTypingIndicator(null); });
-        socket.on('nick changed', ({oldNick,newNick})=>{ if(currentUser.nick===oldNick) { currentUser.nick=newNick; $('profileNickDisplay').innerText=newNick; } loadContacts(); loadChatsList(); });
+        socket.on('chat message received', newMsg=>{ if(currentChat.id === newMsg.chat_id) { messages.push(newMsg); renderMessages(); lastReadMessage[currentChat.id] = newMsg.id; localStorage.setItem('last_read_message', JSON.stringify(lastReadMessage)); } loadChatsList(); });
+        socket.on('message deleted', id=>{ messages = messages.filter(m=>m.id!==id); renderMessages(); loadChatsList(); });
+        socket.on('message edited', ({messageId, newText})=>{ const m = messages.find(m=>m.id===messageId); if(m){ m.text = newText; m.edited = true; renderMessages(); } loadChatsList(); });
+        socket.on('reaction updated', ({messageId, reactions})=>{ const m = messages.find(m=>m.id===messageId); if(m){ m.reactions = reactions; renderMessages(); } });
+        socket.on('user typing', d=>{ if(d.chatId === currentChat.id) updateTypingIndicator(d); });
+        socket.on('user stop typing', d=>{ if(d.chatId === currentChat.id) updateTypingIndicator(null); });
+        socket.on('nick changed', ({oldNick, newNick})=>{ if(currentUser.nick === oldNick) { currentUser.nick = newNick; $('profileNickDisplay').innerText = newNick; } loadContacts(); loadChatsList(); });
     }
 
     function bindUI() {
         document.querySelectorAll('.nav-item').forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
-        $('contactsSearchInput').oninput = e=>{ contactsSearchQuery=e.target.value; renderContactsList(); };
-        $('chatSearchInput').oninput = e=>{ chatSearchQuery=e.target.value; renderChatsList(); searchUsers(e.target.value); };
+        $('contactsSearchInput').oninput = e=>{ contactsSearchQuery = e.target.value; renderContactsList(); };
+        $('chatSearchInput').oninput = e=>{ chatSearchQuery = e.target.value; renderChatsList(); searchUsers(e.target.value); };
         $('backFromChatBtn').onclick = closeChatView;
         $('sendBtn').onclick = sendMessage;
         const inp = $('messageInput'); inp.addEventListener('input', ()=>{ autoResize(inp); onTyping(true); });
@@ -807,17 +830,27 @@ document.addEventListener('DOMContentLoaded', function() {
     const token = localStorage.getItem('simply_token');
     if(token) {
         fetch('/verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token})}).then(r=>r.json()).then(async d=>{
-            if(d.success) { currentUser.nick=d.nick; currentUser.badge=d.badge||''; currentUser.description=d.description||''; authToken=token; $('loginScreen').style.display='none'; $('appContainer').style.display='flex'; socket=io(); socket.emit('user online',currentUser.nick); bindUI(); setupProfileModals(); await initializeApp(); showTab('chats'); }
-            else { localStorage.removeItem('simply_token'); $('loginScreen').style.display='flex'; }
+            if(d.success) {
+                currentUser.nick = d.nick; currentUser.badge = d.badge||''; currentUser.description = d.description||''; authToken = token;
+                $('loginScreen').style.display = 'none'; $('appContainer').style.display = 'flex';
+                socket = io(); socket.emit('user online', currentUser.nick);
+                bindUI(); setupProfileModals(); await initializeApp(); showTab('chats');
+            } else { localStorage.removeItem('simply_token'); $('loginScreen').style.display = 'flex'; }
         });
-    } else $('loginScreen').style.display='flex';
+    } else $('loginScreen').style.display = 'flex';
+
     $('loginBtn').onclick = async ()=>{
         const nick = $('loginNick').value.trim(), pin = $('loginPin').value;
-        if(!nick||!pin||pin.length!==4||!/^\d+$/.test(pin)) return $('loginError').innerText='Введите ник и 4-значный PIN';
-        const r = await fetch('/auth',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nick,pin})});
+        if(!nick||!pin||pin.length!==4||!/^\d+$/.test(pin)) return $('loginError').innerText = 'Введите ник и 4-значный PIN';
+        const r = await fetch('/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nick, pin }) });
         const d = await r.json();
-        if(d.success) { currentUser.nick=d.nick; currentUser.badge=d.badge||''; currentUser.description=d.description||''; authToken=d.token; localStorage.setItem('simply_token',authToken); $('loginScreen').style.display='none'; $('appContainer').style.display='flex'; socket=io(); socket.emit('user online',currentUser.nick); bindUI(); setupProfileModals(); await initializeApp(); showTab('chats'); }
-        else $('loginError').innerText = d.error||'Ошибка входа';
+        if(d.success) {
+            currentUser.nick = d.nick; currentUser.badge = d.badge||''; currentUser.description = d.description||''; authToken = d.token;
+            localStorage.setItem('simply_token', authToken);
+            $('loginScreen').style.display = 'none'; $('appContainer').style.display = 'flex';
+            socket = io(); socket.emit('user online', currentUser.nick);
+            bindUI(); setupProfileModals(); await initializeApp(); showTab('chats');
+        } else $('loginError').innerText = d.error||'Ошибка входа';
     };
 });
 </script>
