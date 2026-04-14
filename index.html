@@ -299,7 +299,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     document.documentElement.style.setProperty('--accent-color', appSettings.accentColor);
 
-    // ========== Управление модальными окнами ==========
+    // Управление модальными окнами
     let modalZ = 10000;
     function showModal(modalId) {
         const modal = $(modalId);
@@ -347,7 +347,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     function hasUnreadMessages(chat) { if(!chat.last_message) return false; if(chat.last_message.nick === currentUser.nick) return false; const lastId = chat.last_message.id, readId = lastReadMessage[chat.id]||0; return lastId > readId; }
 
-    // ========== Свайп для закрытия ==========
+    // Свайп (слева направо)
     function initSwipeToClose(element, onClose) {
         if (!element) return;
         let startX = 0, currentX = 0, isDragging = false;
@@ -381,7 +381,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // ========== Навигация ==========
+    // Навигация
     function showTab(tabId) {
         document.querySelectorAll('.panel').forEach(p => p.style.display = 'none');
         const panel = $(tabId+'Panel'); if (panel) panel.style.display = 'flex';
@@ -418,7 +418,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     async function loadChatMessages() { if(!currentChat.id) return; try { const r = await fetch(`/chat-messages?chat_id=${currentChat.id}&nick=${encodeURIComponent(currentUser.nick)}`); messages = await r.json(); } catch(e){} }
 
-    // ========== Список чатов ==========
+    // Список чатов
     async function loadChatsList() {
         try { const r = await fetch(`/chats?nick=${encodeURIComponent(currentUser.nick)}`); chatsList = await r.json();
             chatsList.forEach(c => { c.pinned = pinnedChats.includes(c.id); if (c.type === 'notebook') notebookChatId = c.id; });
@@ -442,7 +442,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const own = c.last_message.nick === currentUser.nick;
                 const pre = (c.type!=='private'?c.last_message.nick+': ': (own?'Вы: ':''));
                 if(c.last_message.type==='file') preview = `📎 ${c.last_message.file_name||'Файл'}`;
-                else if(c.last_message.type==='audio') preview = `🎵 ${truncateFileName(c.last_message.file_name)||'Аудио'}`;
+                else if(c.last_message.type==='audio') preview = `🎵 ${c.last_message.file_name||'Аудио'}`;
                 else preview = pre + (c.last_message.text?.length>30?c.last_message.text.slice(0,30)+'…':c.last_message.text);
                 timeStr = formatTimestamp(c.last_message.created_at, appSettings.showDate, appSettings.showTime);
             }
@@ -469,7 +469,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // ========== Меню чата ==========
+    // Меню чата
     async function openChatMenu(chatId, other, type) {
         const cont = $('chatMenuButtons');
         const isPinned = pinnedChats.includes(chatId), isMuted = mutedChats.includes(chatId);
@@ -504,7 +504,7 @@ document.addEventListener('DOMContentLoaded', function() {
         showModal('chatMenuModal');
     }
 
-    // ========== Контакты и поиск ==========
+    // Контакты
     async function loadContacts() { try { const r=await fetch(`/contacts?nick=${encodeURIComponent(currentUser.nick)}`); contacts=await r.json(); renderContactsList(); } catch(e){} }
     function renderContactsList() {
         const cont = $('contactsListContainer'), q = contactsSearchQuery.toLowerCase();
@@ -539,7 +539,7 @@ document.addEventListener('DOMContentLoaded', function() {
         document.querySelectorAll('.contact-name, .user-badge').forEach(el=>el.addEventListener('click',()=>showUserProfile(el.closest('.contact-item').querySelector('.contact-name').innerText)));
     }
 
-    // ========== Профиль пользователя ==========
+    // Профиль пользователя
     async function showUserProfile(nick) {
         const r = await fetch(`/user-profile?nick=${encodeURIComponent(nick)}`); const d = await r.json();
         $('profileNick').innerText = d.nick;
@@ -571,40 +571,90 @@ document.addEventListener('DOMContentLoaded', function() {
         openFullscreenModal('userProfileModal');
     }
 
-    // ========== Аудиоплеер ==========
+    // Аудиоплеер (обновлённый)
     function renderAudioPlayer(msg) {
-        const playerDiv = document.createElement('div'); playerDiv.className = 'audio-player';
+        const displayName = truncateFileName(msg.file_name);
+        const container = document.createElement('div');
+        container.className = 'audio-message';
+        container.style.display = 'flex';
+        container.style.flexDirection = 'column';
+        container.style.gap = '8px';
+
+        // Верхняя строка: иконка и название файла
+        const headerDiv = document.createElement('div');
+        headerDiv.style.display = 'flex';
+        headerDiv.style.alignItems = 'center';
+        headerDiv.style.gap = '8px';
+        headerDiv.innerHTML = `<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="var(--text-secondary)" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+                              <span class="file-name" style="color:var(--text-primary);">${escapeHtml(displayName)}</span>`;
+        container.appendChild(headerDiv);
+
+        // Нижняя строка: плеер и кнопка скачать
+        const controlsDiv = document.createElement('div');
+        controlsDiv.style.display = 'flex';
+        controlsDiv.style.alignItems = 'center';
+        controlsDiv.style.gap = '8px';
+
         const audio = new Audio(msg.file_url);
         let isPlaying = false;
-        const playBtn = document.createElement('button'); playBtn.className = 'play-btn';
-        playBtn.innerHTML = '<svg viewBox="0 0 24 24" width="24" height="24"><polygon points="5 3 19 12 5 21 5 3" fill="currentColor"/></svg>';
-        const progressContainer = document.createElement('div'); progressContainer.className = 'progress-container';
-        const progressFill = document.createElement('div'); progressFill.className = 'progress-fill';
-        progressContainer.appendChild(progressFill);
-        const timeDisplay = document.createElement('span'); timeDisplay.className = 'time-display';
-        const downloadBtn = document.createElement('button'); downloadBtn.className = 'audio-download-btn';
-        downloadBtn.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>';
-        downloadBtn.onclick = () => window.open(msg.file_url, '_blank');
 
-        playBtn.onclick = () => {
-            if (isPlaying) { audio.pause(); playBtn.innerHTML = '<svg viewBox="0 0 24 24" width="24" height="24"><polygon points="5 3 19 12 5 21 5 3" fill="currentColor"/></svg>'; }
-            else { audio.play(); playBtn.innerHTML = '<svg viewBox="0 0 24 24" width="24" height="24"><rect x="6" y="4" width="4" height="16" fill="currentColor"/><rect x="14" y="4" width="4" height="16" fill="currentColor"/></svg>'; }
+        // Кнопка play/pause (стиль как send-btn)
+        const playBtn = document.createElement('button');
+        playBtn.className = 'send-btn';
+        playBtn.style.width = '40px';
+        playBtn.style.height = '40px';
+        playBtn.style.padding = '0';
+        playBtn.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20"><polygon points="5 3 19 12 5 21 5 3" fill="currentColor"/></svg>';
+        playBtn.onclick = (e) => {
+            e.stopPropagation();
+            if (isPlaying) {
+                audio.pause();
+                playBtn.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20"><polygon points="5 3 19 12 5 21 5 3" fill="currentColor"/></svg>';
+            } else {
+                audio.play();
+                playBtn.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20"><rect x="6" y="4" width="4" height="16" fill="currentColor"/><rect x="14" y="4" width="4" height="16" fill="currentColor"/></svg>';
+            }
             isPlaying = !isPlaying;
         };
+        controlsDiv.appendChild(playBtn);
+
+        // Прогресс-бар
+        const progressContainer = document.createElement('div');
+        progressContainer.className = 'progress-container';
+        progressContainer.style.flex = '1';
+        const progressFill = document.createElement('div');
+        progressFill.className = 'progress-fill';
+        progressContainer.appendChild(progressFill);
+        controlsDiv.appendChild(progressContainer);
+
         audio.addEventListener('timeupdate', () => {
             const progress = (audio.currentTime / audio.duration) * 100;
             progressFill.style.width = `${progress}%`;
-            timeDisplay.innerText = `${Math.floor(audio.currentTime)}s / ${Math.floor(audio.duration)}s`;
         });
-        audio.addEventListener('ended', () => { playBtn.innerHTML = '<svg viewBox="0 0 24 24" width="24" height="24"><polygon points="5 3 19 12 5 21 5 3" fill="currentColor"/></svg>'; isPlaying = false; });
-        playerDiv.appendChild(playBtn);
-        playerDiv.appendChild(progressContainer);
-        playerDiv.appendChild(timeDisplay);
-        playerDiv.appendChild(downloadBtn);
-        return playerDiv;
+        audio.addEventListener('ended', () => {
+            playBtn.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20"><polygon points="5 3 19 12 5 21 5 3" fill="currentColor"/></svg>';
+            isPlaying = false;
+        });
+
+        // Кнопка скачать (стиль как attach-btn)
+        const downloadBtn = document.createElement('button');
+        downloadBtn.className = 'attach-btn';
+        downloadBtn.style.width = '40px';
+        downloadBtn.style.height = '40px';
+        downloadBtn.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>';
+        downloadBtn.onclick = (e) => {
+            e.stopPropagation();
+            const a = document.createElement('a');
+            a.href = msg.file_url;
+            a.download = msg.file_name;
+            a.click();
+        };
+        controlsDiv.appendChild(downloadBtn);
+
+        container.appendChild(controlsDiv);
+        return container;
     }
 
-    // ========== Рендер сообщений ==========
     function renderMessages() {
         const cont = $('messagesContainer'); if(!cont) return;
         const wasNearBottom = cont.scrollHeight - cont.scrollTop - cont.clientHeight < 200;
@@ -624,8 +674,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 const displayName = truncateFileName(msg.file_name);
                 content = `<div class="file-message"><div class="file-icon">📎</div><div class="file-info"><div class="file-name">${escapeHtml(displayName)}</div><div class="file-size">${formatFileSize(msg.file_size)}</div></div><button class="open-file-btn" data-url="${msg.file_url}">Открыть</button></div>`;
             } else if (msg.type === 'audio') {
-                const displayName = truncateFileName(msg.file_name);
-                content = `<div class="audio-message"><div class="file-message"><div class="file-icon"><svg viewBox="0 0 24 24" width="24" height="24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg></div><div class="file-info"><div class="file-name">${escapeHtml(displayName)}</div><div class="file-size">${formatFileSize(msg.file_size)}</div></div></div>${renderAudioPlayer(msg).outerHTML}</div>`;
+                const player = renderAudioPlayer(msg);
+                div.appendChild(player);
             } else content = `<div class="message-text">${linkify(escapeHtml(msg.text||''))}</div>`;
             const badge = (msg.nick === currentUser.nick) ? (currentUser.badge||'') : (msg.user_badge||'');
             const header = appSettings.showBadges ? `<div class="message-header"><div class="message-nick"><span class="user-badge">${badge}</span><span class="nick-main">${escapeHtml(msg.nick)}</span></div></div>` : `<div class="message-header"><div class="message-nick"><span class="nick-main">${escapeHtml(msg.nick)}</span></div></div>`;
@@ -695,7 +745,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     $('attachBtn').onclick = ()=>{ const inp = document.createElement('input'); inp.type='file'; inp.accept='*/*'; inp.onchange = async e => { const f = e.target.files[0]; if(!f) return; const fd = new FormData(); fd.append('file',f); const r=await fetch('/upload',{method:'POST',body:fd}); const d=await r.json(); if(d.success) { const type = f.type.startsWith('audio/') ? 'audio' : (f.type.startsWith('image/')||f.type.startsWith('video/')?'media':'file'); fetch('/chat-message',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({chat_id:currentChat.id, nick:currentUser.nick, type, file_url:'/uploads/'+d.file.filename, file_name:f.name, file_size:f.size})}); } }; inp.click(); };
 
-    // ========== Настройки ==========
+    // Настройки
     async function loadPrivacySettings() { const r=await fetch(`/privacy-settings?nick=${encodeURIComponent(currentUser.nick)}`); const d=await r.json(); privacySettings=d; ['visibilitySelect','whoCanWriteSelect','descriptionVisibleSelect'].forEach(id=>{ const sel=$(id); if(sel) { sel.value=d[id.replace('Select','').replace(/([A-Z])/g,'_$1').toLowerCase()]||'all'; sel.onchange = async e=>{ const field=id.replace('Select','').replace(/([A-Z])/g,'_$1').toLowerCase(); privacySettings[field]=e.target.value; localStorage.setItem('privacy_settings',JSON.stringify(privacySettings)); await fetch('/update-privacy',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:authToken,field,value:e.target.value})}); }; } }); }
     function setupProfileModals() {
         $('openSelfExpressionBtn').onclick = ()=> openFullscreenModal('selfExpressionModal');
@@ -723,7 +773,7 @@ document.addEventListener('DOMContentLoaded', function() {
     async function loadBlockedList() { const r=await fetch(`/blocked-list?nick=${encodeURIComponent(currentUser.nick)}`); const blocked=await r.json(); let html=''; blocked.forEach(b=>{ html+=`<div class="contact-item"><div class="contact-info">${escapeHtml(b.blocked_nick)}</div><div class="contact-actions"><button class="unblock-btn" data-nick="${b.blocked_nick}">Разблокировать</button></div></div>`; }); $('blockedListContainer').innerHTML=html||'<div class="empty-state">Список пуст</div>'; document.querySelectorAll('.unblock-btn').forEach(b=>b.onclick=async ()=>{ await fetch('/unblock-user',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user:currentUser.nick,blocked:b.dataset.nick})}); loadBlockedList(); }); }
     $('closeBlockedListBtn').onclick = ()=> hideModal('blockedListModal');
 
-    // ========== Инициализация ==========
+    // Инициализация
     async function initializeApp() {
         $('showDateToggle').checked = appSettings.showDate; $('showReactionsToggle').checked = appSettings.showReactions; $('showTimeToggle').checked = appSettings.showTime; $('showBadgesToggle').checked = appSettings.showBadges; $('badgeSelect').value = currentUser.badge||''; $('quickReactionSelect').value = appSettings.quickReaction||''; $('accentColorSelect').value = appSettings.accentColor;
         $('showDateToggle').onchange = e=>{ appSettings.showDate=e.target.checked; localStorage.setItem('simply_settings',JSON.stringify(appSettings)); renderMessages(); renderChatsList(); };
@@ -753,9 +803,6 @@ document.addEventListener('DOMContentLoaded', function() {
         initSwipeToClose($('chatView'), closeChatView);
         document.querySelectorAll('.modal.fullscreen .modal-container').forEach(el => { const modal = el.closest('.modal'); if(modal) initSwipeToClose(el, () => hideModal(modal.id)); });
     }
-
-    function sendMessage() { const inp = $('messageInput'); const text = inp.value.trim(); if(!text && !replyingTo && !editingMessage) return; if(!currentChat.id) return; if(editingMessage) { editMessage(editingMessage.id, text); editingMessage=null; inp.value=''; autoResize(inp); hideEditIndicator(); inp.focus(); return; } fetch('/chat-message',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({chat_id:currentChat.id, nick:currentUser.nick, text, reply_to_id:replyingTo?.messageId, type:'text'})}); replyingTo=null; hideReplyIndicator(); inp.value=''; autoResize(inp); onTyping(false); inp.focus(); }
-    async function editMessage(id, newText) { await fetch('/edit-message',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messageId:id, nick:currentUser.nick, newText})}); }
 
     const token = localStorage.getItem('simply_token');
     if(token) {
