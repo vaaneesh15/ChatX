@@ -166,10 +166,10 @@
         .empty-state { color:var(--text-secondary); text-align:center; padding:2rem 0; }
         .dragging { transition: none; }
         .audio-player { display:flex; align-items:center; gap:12px; margin-top:8px; flex-wrap:wrap; }
-        .audio-play-btn { background:var(--accent-color); border:none; width:2.8rem; height:2.8rem; border-radius:2rem; color:white; display:flex; align-items:center; justify-content:center; }
-        .audio-progress-container { flex:1 1 100px; height:4px; background:var(--border-light); border-radius:2px; position:relative; }
+        .audio-play-btn { background:var(--accent-color); border:none; width:2.8rem; height:2.8rem; border-radius:2rem; color:white; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+        .audio-progress-container { flex:1 1 100px; height:4px; background:var(--border-light); border-radius:2px; position:relative; min-width:60px; }
         .audio-progress-fill { height:100%; background:var(--accent-color); border-radius:2px; width:0%; }
-        .audio-download-btn { background:var(--bg-page); border:1px solid var(--border-light); width:2.8rem; height:2.8rem; border-radius:2rem; color:var(--text-primary); display:flex; align-items:center; justify-content:center; }
+        .audio-download-btn { background:var(--bg-page); border:1px solid var(--border-light); width:2.8rem; height:2.8rem; border-radius:2rem; color:var(--text-primary); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
         .audio-download-btn svg { width:1.5rem; height:1.5rem; stroke:currentColor; stroke-width:1.5; fill:none; }
         .modal-stack { z-index:10002 !important; }
     </style>
@@ -256,7 +256,7 @@
 
 <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
 <script>
-// === ПОЛНЫЙ ИСПРАВЛЕННЫЙ JS (ФИНАЛ) ===
+// === ФИНАЛЬНЫЙ JS С АУДИОПЛЕЕРОМ И ПЛАВНЫМИ СВАЙПАМИ ===
 (function() {
     function addTapped(e) { const t = e.target.closest?.('button, .clickable'); if (t) t.classList.add('tapped'); }
     function removeTapped(e) { const t = e.target.closest?.('button, .clickable'); if (t) t.classList.remove('tapped'); }
@@ -345,7 +345,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     function hasUnreadMessages(chat) { if(!chat.last_message) return false; if(chat.last_message.nick === currentUser.nick) return false; const lastId = chat.last_message.id, readId = lastReadMessage[chat.id]||0; return lastId > readId; }
 
-    // === СВАЙП (плавный) ===
+    // === СВАЙП (плавный, единый для всех) ===
     function initSwipeToClose(element, onClose) {
         if (!element) return;
         let startX = 0, currentX = 0, isDragging = false;
@@ -572,16 +572,14 @@ document.addEventListener('DOMContentLoaded', function() {
         openFullscreenModal('userProfileModal');
     }
 
-    // === АУДИОПЛЕЕР (исправлен) ===
+    // === АУДИОПЛЕЕР (ГАРАНТИРОВАННО ВИДИМ) ===
     function renderAudioPlayer(msg) {
         const playerDiv = document.createElement('div'); playerDiv.className = 'audio-player';
-        playerDiv.style.flexWrap = 'wrap';
         const audio = new Audio(msg.file_url);
         let isPlaying = false;
         const playBtn = document.createElement('button'); playBtn.className = 'audio-play-btn';
         playBtn.innerHTML = '<svg viewBox="0 0 24 24" width="24" height="24"><polygon points="5 3 19 12 5 21 5 3" fill="white"/></svg>';
         const progressContainer = document.createElement('div'); progressContainer.className = 'audio-progress-container';
-        progressContainer.style.flex = '1 1 100px';
         const progressFill = document.createElement('div'); progressFill.className = 'audio-progress-fill';
         progressContainer.appendChild(progressFill);
         const downloadBtn = document.createElement('button'); downloadBtn.className = 'audio-download-btn';
