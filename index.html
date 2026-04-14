@@ -256,6 +256,8 @@
 <script>
 <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
 <script>
+<script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
+<script>
 (function() {
     function addTapped(e) { const t = e.target.closest?.('button, .clickable'); if (t) t.classList.add('tapped'); }
     function removeTapped(e) { const t = e.target.closest?.('button, .clickable'); if (t) t.classList.remove('tapped'); }
@@ -297,20 +299,26 @@ document.addEventListener('DOMContentLoaded', function() {
 
     document.documentElement.style.setProperty('--accent-color', appSettings.accentColor);
 
-    // modal stack для вложенных модалок
-    let modalZ = 10000;
+    // ========== Управление модальными окнами ==========
     function showModal(modalId) {
         const modal = $(modalId);
         if (!modal) return;
-        modal.style.zIndex = ++modalZ;
         modal.style.display = 'flex';
+        // Принудительно перерисовываем, затем добавляем класс для анимации
         setTimeout(() => modal.classList.add('show'), 10);
     }
     function hideModal(modalId) {
         const modal = $(modalId);
         if (!modal) return;
         modal.classList.remove('show');
-        setTimeout(() => modal.style.display = 'none', 200);
+        setTimeout(() => { if (!modal.classList.contains('show')) modal.style.display = 'none'; }, 200);
+    }
+    function openFullscreenModal(modalId) {
+        const modal = $(modalId);
+        if (!modal) return;
+        // Убедимся, что все полноэкранные модалки имеют z-index выше
+        modal.style.zIndex = '10001';
+        showModal(modalId);
     }
 
     function showConfirm(message, onOk, title = 'Подтверждение') {
@@ -339,13 +347,13 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     function hasUnreadMessages(chat) { if(!chat.last_message) return false; if(chat.last_message.nick === currentUser.nick) return false; const lastId = chat.last_message.id, readId = lastReadMessage[chat.id]||0; return lastId > readId; }
 
-    // Свайп с левого края
+    // ========== Свайп для закрытия (слева направо) ==========
     function initSwipeToClose(element, onClose) {
         if (!element) return;
         let startX = 0, currentX = 0, isDragging = false;
         const threshold = 100;
         element.addEventListener('touchstart', e => {
-            if (e.touches[0].clientX > 30) return;
+            if (e.touches[0].clientX > 30) return; // только от левого края
             startX = e.touches[0].clientX;
             isDragging = true;
             element.classList.add('dragging');
@@ -373,16 +381,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Анимация вылета справа
-    function openFullscreenModal(modalId) {
-        const modal = $(modalId);
-        if (!modal) return;
-        modal.style.display = 'flex';
-        modal.style.zIndex = ++modalZ;
-        setTimeout(() => modal.classList.add('show'), 10);
-    }
-
-    // Навигация
+    // ========== Навигация ==========
     function showTab(tabId) {
         document.querySelectorAll('.panel').forEach(p => p.style.display = 'none');
         const panel = $(tabId+'Panel'); if (panel) panel.style.display = 'flex';
@@ -419,7 +418,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     async function loadChatMessages() { if(!currentChat.id) return; try { const r = await fetch(`/chat-messages?chat_id=${currentChat.id}&nick=${encodeURIComponent(currentUser.nick)}`); messages = await r.json(); } catch(e){} }
 
-    // Список чатов (без фиксации public/notebook)
+    // ========== Список чатов ==========
     async function loadChatsList() {
         try { const r = await fetch(`/chats?nick=${encodeURIComponent(currentUser.nick)}`); chatsList = await r.json();
             chatsList.forEach(c => { c.pinned = pinnedChats.includes(c.id); if (c.type === 'notebook') notebookChatId = c.id; });
@@ -429,7 +428,6 @@ document.addEventListener('DOMContentLoaded', function() {
     function renderChatsList() {
         const cont = $('chatsListContainer'); const q = chatSearchQuery.toLowerCase();
         let filt = chatsList.filter(c => c.name.toLowerCase().includes(q));
-        // Сортировка: закреплённые выше, затем по времени последнего сообщения
         filt.sort((a,b) => {
             if (a.pinned && !b.pinned) return -1;
             if (!a.pinned && b.pinned) return 1;
@@ -471,7 +469,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Меню чата с лимитом закреплений
+    // ========== Меню чата ==========
     async function openChatMenu(chatId, other, type) {
         const cont = $('chatMenuButtons');
         const isPinned = pinnedChats.includes(chatId), isMuted = mutedChats.includes(chatId);
@@ -490,11 +488,8 @@ document.addEventListener('DOMContentLoaded', function() {
         const pinBtn = $('chatMenuPin');
         if(pinBtn && !pinBtn.classList.contains('disabled')) {
             pinBtn.onclick = () => {
-                if (isPinned) {
-                    pinnedChats = pinnedChats.filter(id => id !== chatId);
-                } else {
-                    if (pinnedChats.length < MAX_PINNED) pinnedChats.push(chatId);
-                }
+                if (isPinned) pinnedChats = pinnedChats.filter(id => id !== chatId);
+                else if (pinnedChats.length < MAX_PINNED) pinnedChats.push(chatId);
                 localStorage.setItem('pinned_chats', JSON.stringify(pinnedChats));
                 loadChatsList(); hideModal('chatMenuModal');
             };
@@ -509,7 +504,7 @@ document.addEventListener('DOMContentLoaded', function() {
         showModal('chatMenuModal');
     }
 
-    // Контакты и поиск
+    // ========== Контакты и поиск ==========
     async function loadContacts() { try { const r=await fetch(`/contacts?nick=${encodeURIComponent(currentUser.nick)}`); contacts=await r.json(); renderContactsList(); } catch(e){} }
     function renderContactsList() {
         const cont = $('contactsListContainer'), q = contactsSearchQuery.toLowerCase();
@@ -544,7 +539,7 @@ document.addEventListener('DOMContentLoaded', function() {
         document.querySelectorAll('.contact-name, .user-badge').forEach(el=>el.addEventListener('click',()=>showUserProfile(el.closest('.contact-item').querySelector('.contact-name').innerText)));
     }
 
-    // Профиль пользователя
+    // ========== Профиль пользователя ==========
     async function showUserProfile(nick) {
         const r = await fetch(`/user-profile?nick=${encodeURIComponent(nick)}`); const d = await r.json();
         $('profileNick').innerText = d.nick;
@@ -576,7 +571,7 @@ document.addEventListener('DOMContentLoaded', function() {
         openFullscreenModal('userProfileModal');
     }
 
-    // Аудиоплеер
+    // ========== Аудиоплеер ==========
     function renderAudioPlayer(msg) {
         const playerDiv = document.createElement('div'); playerDiv.className = 'audio-player';
         const audio = new Audio(msg.file_url);
@@ -609,6 +604,7 @@ document.addEventListener('DOMContentLoaded', function() {
         return playerDiv;
     }
 
+    // ========== Рендер сообщений ==========
     function renderMessages() {
         const cont = $('messagesContainer'); if(!cont) return;
         const wasNearBottom = cont.scrollHeight - cont.scrollTop - cont.clientHeight < 200;
@@ -700,13 +696,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     $('attachBtn').onclick = ()=>{ const inp = document.createElement('input'); inp.type='file'; inp.accept='*/*'; inp.onchange = async e => { const f = e.target.files[0]; if(!f) return; const fd = new FormData(); fd.append('file',f); const r=await fetch('/upload',{method:'POST',body:fd}); const d=await r.json(); if(d.success) { const type = f.type.startsWith('audio/') ? 'audio' : (f.type.startsWith('image/')||f.type.startsWith('video/')?'media':'file'); fetch('/chat-message',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({chat_id:currentChat.id, nick:currentUser.nick, type, file_url:'/uploads/'+d.file.filename, file_name:f.name, file_size:f.size})}); } }; inp.click(); };
 
-    // Меню чатов (контекстное меню кнопки "Чаты")
-    const chatsTab = $('chatsTabBtn'); if(chatsTab) { chatsTab.addEventListener('contextmenu', e=>e.preventDefault()); let pressTimer; ['touchstart','mousedown'].forEach(ev=>chatsTab.addEventListener(ev, e=>{ pressTimer=setTimeout(()=>showModal('chatsMenuModal'),500); })); ['touchend','touchcancel','mouseup','mouseleave'].forEach(ev=>chatsTab.addEventListener(ev, ()=>clearTimeout(pressTimer))); }
-    // Кнопка закрытия меню чатов (если есть)
-    const closeChatsMenuBtn = $('closeChatsMenuBtn');
-    if (closeChatsMenuBtn) closeChatsMenuBtn.onclick = ()=> hideModal('chatsMenuModal');
-
-    // Настройки
+    // ========== Настройки ==========
     async function loadPrivacySettings() { const r=await fetch(`/privacy-settings?nick=${encodeURIComponent(currentUser.nick)}`); const d=await r.json(); privacySettings=d; ['visibilitySelect','whoCanWriteSelect','descriptionVisibleSelect'].forEach(id=>{ const sel=$(id); if(sel) { sel.value=d[id.replace('Select','').replace(/([A-Z])/g,'_$1').toLowerCase()]||'all'; sel.onchange = async e=>{ const field=id.replace('Select','').replace(/([A-Z])/g,'_$1').toLowerCase(); privacySettings[field]=e.target.value; localStorage.setItem('privacy_settings',JSON.stringify(privacySettings)); await fetch('/update-privacy',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:authToken,field,value:e.target.value})}); }; } }); }
     function setupProfileModals() {
         $('openSelfExpressionBtn').onclick = ()=> openFullscreenModal('selfExpressionModal');
@@ -734,7 +724,7 @@ document.addEventListener('DOMContentLoaded', function() {
     async function loadBlockedList() { const r=await fetch(`/blocked-list?nick=${encodeURIComponent(currentUser.nick)}`); const blocked=await r.json(); let html=''; blocked.forEach(b=>{ html+=`<div class="contact-item"><div class="contact-info">${escapeHtml(b.blocked_nick)}</div><div class="contact-actions"><button class="unblock-btn" data-nick="${b.blocked_nick}">Разблокировать</button></div></div>`; }); $('blockedListContainer').innerHTML=html||'<div class="empty-state">Список пуст</div>'; document.querySelectorAll('.unblock-btn').forEach(b=>b.onclick=async ()=>{ await fetch('/unblock-user',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user:currentUser.nick,blocked:b.dataset.nick})}); loadBlockedList(); }); }
     $('closeBlockedListBtn').onclick = ()=> hideModal('blockedListModal');
 
-    // Инициализация
+    // ========== Инициализация приложения ==========
     async function initializeApp() {
         $('showDateToggle').checked = appSettings.showDate; $('showReactionsToggle').checked = appSettings.showReactions; $('showTimeToggle').checked = appSettings.showTime; $('showBadgesToggle').checked = appSettings.showBadges; $('badgeSelect').value = currentUser.badge||''; $('quickReactionSelect').value = appSettings.quickReaction||''; $('accentColorSelect').value = appSettings.accentColor;
         $('showDateToggle').onchange = e=>{ appSettings.showDate=e.target.checked; localStorage.setItem('simply_settings',JSON.stringify(appSettings)); renderMessages(); renderChatsList(); };
@@ -781,7 +771,6 @@ document.addEventListener('DOMContentLoaded', function() {
         else $('loginError').innerText = d.error||'Ошибка входа';
     };
 });
-</script>
 </script>
 </body>
 </html>
