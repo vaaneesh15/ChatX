@@ -166,8 +166,9 @@
         .tab-pane.active { display:block; }
         .empty-state { color:var(--text-secondary); text-align:center; padding:2rem 0; }
         .dragging { transition: none; }
+        .audio-message { display:flex; flex-direction:column; gap:8px; }
         .audio-player { display:flex; align-items:center; gap:12px; margin-top:8px; }
-        .audio-player button { background:none; border:none; color:var(--text-primary); width:40px; height:40px; display:flex; align-items:center; justify-content:center; }
+        .audio-player .play-btn { background:none; border:none; color:var(--text-primary); width:40px; height:40px; display:flex; align-items:center; justify-content:center; }
         .audio-player .progress-container { flex:1; height:4px; background:var(--border-light); border-radius:2px; position:relative; }
         .audio-player .progress-fill { height:100%; background:var(--accent-color); border-radius:2px; width:0%; }
         .audio-player .time-display { font-size:0.8rem; color:var(--text-secondary); min-width:80px; text-align:right; }
@@ -186,6 +187,7 @@
     </div>
 </div>
 <div id="appContainer" class="app-container" style="display:none;">
+    <!-- Панели -->
     <div id="contactsPanel" class="panel" style="display:none;">
         <div class="panel-header">
             <div class="panel-title">Контакты</div>
@@ -212,6 +214,7 @@
             <div class="setting-row"><button id="openStyleSettingsBtn" class="profile-menu-btn"><svg viewBox="0 0 24 24"><path d="M15 3l5 5-8 8H8v-4l7-7z"/><path d="M4 20h16"/></svg>Оформление</button></div>
         </div>
     </div>
+    <!-- Чат -->
     <div id="chatView" class="chat-view" style="display:none;">
         <div class="chat-header">
             <button class="back-btn" id="backFromChatBtn">←</button>
@@ -230,6 +233,7 @@
             </div>
         </div>
     </div>
+    <!-- Навигация -->
     <div class="nav-bar" id="mainNavBar">
         <button class="nav-item" data-tab="contacts"><svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg><span>Контакты</span></button>
         <button class="nav-item active" data-tab="chats" id="chatsTabBtn"><svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg><span>Чаты</span></button>
@@ -237,7 +241,7 @@
     </div>
 </div>
 
-<!-- Модалки -->
+<!-- Модальные окна -->
 <div id="confirmModal" class="modal"><div class="modal-overlay"></div><div class="modal-container"><div class="modal-content"><h3 id="confirmTitle">Подтверждение</h3><p id="confirmMessage">Вы уверены?</p><div class="modal-buttons"><button id="confirmCancelBtn">Отмена</button><button id="confirmOkBtn">OK</button></div></div></div></div>
 <div id="pinConfirmModal" class="modal"><div class="modal-overlay"></div><div class="modal-container"><div class="modal-content"><h3>Введите PIN</h3><div class="modal-setting"><input type="password" id="pinConfirmInput" placeholder="PIN" maxlength="4"></div><div class="modal-buttons"><button id="pinConfirmCancelBtn">Отмена</button><button id="pinConfirmOkBtn">Подтвердить</button></div></div></div></div>
 <div id="reactionPickerModal" class="modal fullscreen"><div class="modal-overlay"></div><div class="modal-container"><div class="modal-content"><h3>Реакция</h3><div class="reactions-picker" id="reactionsPicker"></div><div class="modal-buttons"><button id="closeReactionPickerBtn">Закрыть</button></div></div></div></div>
@@ -296,9 +300,11 @@ document.addEventListener('DOMContentLoaded', function() {
     document.documentElement.style.setProperty('--accent-color', appSettings.accentColor);
 
     // ========== Управление модальными окнами ==========
+    let modalZ = 10000;
     function showModal(modalId) {
         const modal = $(modalId);
         if (!modal) return;
+        modal.style.zIndex = ++modalZ;
         modal.style.display = 'flex';
         setTimeout(() => modal.classList.add('show'), 10);
     }
@@ -311,7 +317,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function openFullscreenModal(modalId) {
         const modal = $(modalId);
         if (!modal) return;
-        modal.style.zIndex = '10001';
+        modal.style.zIndex = ++modalZ;
         showModal(modalId);
     }
 
@@ -341,7 +347,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     function hasUnreadMessages(chat) { if(!chat.last_message) return false; if(chat.last_message.nick === currentUser.nick) return false; const lastId = chat.last_message.id, readId = lastReadMessage[chat.id]||0; return lastId > readId; }
 
-    // ========== Свайп ==========
+    // ========== Свайп для закрытия ==========
     function initSwipeToClose(element, onClose) {
         if (!element) return;
         let startX = 0, currentX = 0, isDragging = false;
@@ -436,7 +442,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const own = c.last_message.nick === currentUser.nick;
                 const pre = (c.type!=='private'?c.last_message.nick+': ': (own?'Вы: ':''));
                 if(c.last_message.type==='file') preview = `📎 ${c.last_message.file_name||'Файл'}`;
-                else if(c.last_message.type==='audio') preview = `🎵 ${c.last_message.file_name||'Аудио'}`;
+                else if(c.last_message.type==='audio') preview = `🎵 ${truncateFileName(c.last_message.file_name)||'Аудио'}`;
                 else preview = pre + (c.last_message.text?.length>30?c.last_message.text.slice(0,30)+'…':c.last_message.text);
                 timeStr = formatTimestamp(c.last_message.created_at, appSettings.showDate, appSettings.showTime);
             }
@@ -570,7 +576,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const playerDiv = document.createElement('div'); playerDiv.className = 'audio-player';
         const audio = new Audio(msg.file_url);
         let isPlaying = false;
-        const playBtn = document.createElement('button');
+        const playBtn = document.createElement('button'); playBtn.className = 'play-btn';
         playBtn.innerHTML = '<svg viewBox="0 0 24 24" width="24" height="24"><polygon points="5 3 19 12 5 21 5 3" fill="currentColor"/></svg>';
         const progressContainer = document.createElement('div'); progressContainer.className = 'progress-container';
         const progressFill = document.createElement('div'); progressFill.className = 'progress-fill';
@@ -598,21 +604,7 @@ document.addEventListener('DOMContentLoaded', function() {
         return playerDiv;
     }
 
-    // ========== Рендер сообщений и отправка ==========
-    function sendMessage() {
-        const inp = $('messageInput'); const text = inp.value.trim();
-        if(!text && !replyingTo && !editingMessage) return;
-        if(!currentChat.id) return;
-        if(editingMessage) {
-            editMessage(editingMessage.id, text);
-            editingMessage=null; inp.value=''; autoResize(inp); hideEditIndicator(); inp.focus();
-            return;
-        }
-        fetch('/chat-message',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({chat_id:currentChat.id, nick:currentUser.nick, text, reply_to_id:replyingTo?.messageId, type:'text'})});
-        replyingTo=null; hideReplyIndicator(); inp.value=''; autoResize(inp); onTyping(false); inp.focus();
-    }
-    async function editMessage(id, newText) { await fetch('/edit-message',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messageId:id, nick:currentUser.nick, newText})}); }
-
+    // ========== Рендер сообщений ==========
     function renderMessages() {
         const cont = $('messagesContainer'); if(!cont) return;
         const wasNearBottom = cont.scrollHeight - cont.scrollTop - cont.clientHeight < 200;
@@ -632,9 +624,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 const displayName = truncateFileName(msg.file_name);
                 content = `<div class="file-message"><div class="file-icon">📎</div><div class="file-info"><div class="file-name">${escapeHtml(displayName)}</div><div class="file-size">${formatFileSize(msg.file_size)}</div></div><button class="open-file-btn" data-url="${msg.file_url}">Открыть</button></div>`;
             } else if (msg.type === 'audio') {
-                content = `<div class="file-message"><div class="file-icon">🎵</div><div class="file-info"><div class="file-name">${escapeHtml(msg.file_name||'Аудио')}</div></div></div>`;
-                const player = renderAudioPlayer(msg);
-                div.appendChild(player);
+                const displayName = truncateFileName(msg.file_name);
+                content = `<div class="audio-message"><div class="file-message"><div class="file-icon"><svg viewBox="0 0 24 24" width="24" height="24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg></div><div class="file-info"><div class="file-name">${escapeHtml(displayName)}</div><div class="file-size">${formatFileSize(msg.file_size)}</div></div></div>${renderAudioPlayer(msg).outerHTML}</div>`;
             } else content = `<div class="message-text">${linkify(escapeHtml(msg.text||''))}</div>`;
             const badge = (msg.nick === currentUser.nick) ? (currentUser.badge||'') : (msg.user_badge||'');
             const header = appSettings.showBadges ? `<div class="message-header"><div class="message-nick"><span class="user-badge">${badge}</span><span class="nick-main">${escapeHtml(msg.nick)}</span></div></div>` : `<div class="message-header"><div class="message-nick"><span class="nick-main">${escapeHtml(msg.nick)}</span></div></div>`;
@@ -762,6 +753,9 @@ document.addEventListener('DOMContentLoaded', function() {
         initSwipeToClose($('chatView'), closeChatView);
         document.querySelectorAll('.modal.fullscreen .modal-container').forEach(el => { const modal = el.closest('.modal'); if(modal) initSwipeToClose(el, () => hideModal(modal.id)); });
     }
+
+    function sendMessage() { const inp = $('messageInput'); const text = inp.value.trim(); if(!text && !replyingTo && !editingMessage) return; if(!currentChat.id) return; if(editingMessage) { editMessage(editingMessage.id, text); editingMessage=null; inp.value=''; autoResize(inp); hideEditIndicator(); inp.focus(); return; } fetch('/chat-message',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({chat_id:currentChat.id, nick:currentUser.nick, text, reply_to_id:replyingTo?.messageId, type:'text'})}); replyingTo=null; hideReplyIndicator(); inp.value=''; autoResize(inp); onTyping(false); inp.focus(); }
+    async function editMessage(id, newText) { await fetch('/edit-message',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messageId:id, nick:currentUser.nick, newText})}); }
 
     const token = localStorage.getItem('simply_token');
     if(token) {
