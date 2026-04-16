@@ -55,10 +55,9 @@ async function initDB() {
     );
   `);
 
-  // Удаляем колонку who_can_invite, если осталась от старых версий
   try { await pool.query(`ALTER TABLE users DROP COLUMN IF EXISTS who_can_invite`); } catch (e) {}
 
-  // 2. Таблица chats (без owner_nick и типа 'group')
+  // 2. Таблица chats
   await pool.query(`
     CREATE TABLE IF NOT EXISTS chats (
       id SERIAL PRIMARY KEY,
@@ -67,10 +66,8 @@ async function initDB() {
       created_at TIMESTAMP DEFAULT NOW()
     );
   `);
-  // Удаляем старое ограничение и ставим новое
   try { await pool.query(`ALTER TABLE chats DROP CONSTRAINT IF EXISTS chats_type_check`); } catch (e) {}
   try { await pool.query(`ALTER TABLE chats ADD CONSTRAINT chats_type_check CHECK (type IN ('public', 'private', 'notebook'))`); } catch (e) {}
-  // Удаляем колонку owner_nick, если она ещё есть
   try { await pool.query(`ALTER TABLE chats DROP COLUMN IF EXISTS owner_nick`); } catch (e) {}
 
   // 3. Таблица chat_participants
@@ -81,13 +78,8 @@ async function initDB() {
       PRIMARY KEY (chat_id, nick)
     );
   `);
-  // Пересоздаём внешний ключ с каскадным удалением
-  try {
-    await pool.query(`ALTER TABLE chat_participants DROP CONSTRAINT IF EXISTS chat_participants_nick_fkey`);
-  } catch (e) {}
-  try {
-    await pool.query(`ALTER TABLE chat_participants ADD CONSTRAINT chat_participants_nick_fkey FOREIGN KEY (nick) REFERENCES users(nick) ON DELETE CASCADE`);
-  } catch (e) {}
+  try { await pool.query(`ALTER TABLE chat_participants DROP CONSTRAINT IF EXISTS chat_participants_nick_fkey`); } catch (e) {}
+  try { await pool.query(`ALTER TABLE chat_participants ADD CONSTRAINT chat_participants_nick_fkey FOREIGN KEY (nick) REFERENCES users(nick) ON DELETE CASCADE`); } catch (e) {}
 
   // 4. Таблица messages
   await pool.query(`
@@ -106,13 +98,8 @@ async function initDB() {
       created_at TIMESTAMP DEFAULT NOW()
     );
   `);
-  // Добавляем внешний ключ на nick с каскадным удалением
-  try {
-    await pool.query(`ALTER TABLE messages DROP CONSTRAINT IF EXISTS messages_nick_fkey`);
-  } catch (e) {}
-  try {
-    await pool.query(`ALTER TABLE messages ADD CONSTRAINT messages_nick_fkey FOREIGN KEY (nick) REFERENCES users(nick) ON DELETE CASCADE`);
-  } catch (e) {}
+  try { await pool.query(`ALTER TABLE messages DROP CONSTRAINT IF EXISTS messages_nick_fkey`); } catch (e) {}
+  try { await pool.query(`ALTER TABLE messages ADD CONSTRAINT messages_nick_fkey FOREIGN KEY (nick) REFERENCES users(nick) ON DELETE CASCADE`); } catch (e) {}
 
   // 5. Таблица message_reactions
   await pool.query(`
@@ -125,17 +112,11 @@ async function initDB() {
       UNIQUE(message_id, nick, reaction)
     );
   `);
-  try {
-    await pool.query(`ALTER TABLE message_reactions DROP CONSTRAINT IF EXISTS message_reactions_nick_fkey`);
-  } catch (e) {}
-  try {
-    await pool.query(`ALTER TABLE message_reactions ADD CONSTRAINT message_reactions_nick_fkey FOREIGN KEY (nick) REFERENCES users(nick) ON DELETE CASCADE`);
-  } catch (e) {}
+  try { await pool.query(`ALTER TABLE message_reactions DROP CONSTRAINT IF EXISTS message_reactions_nick_fkey`); } catch (e) {}
+  try { await pool.query(`ALTER TABLE message_reactions ADD CONSTRAINT message_reactions_nick_fkey FOREIGN KEY (nick) REFERENCES users(nick) ON DELETE CASCADE`); } catch (e) {}
 
-  // 6. Таблица contacts — пересоздаём с каскадным удалением
-  try {
-    await pool.query(`DROP TABLE IF EXISTS contacts CASCADE`);
-  } catch (e) {}
+  // 6. Таблица contacts
+  try { await pool.query(`DROP TABLE IF EXISTS contacts CASCADE`); } catch (e) {}
   await pool.query(`
     CREATE TABLE contacts (
       user_nick VARCHAR(50) NOT NULL REFERENCES users(nick) ON DELETE CASCADE,
@@ -145,10 +126,8 @@ async function initDB() {
     );
   `);
 
-  // 7. Таблица blocked_users — пересоздаём с каскадным удалением
-  try {
-    await pool.query(`DROP TABLE IF EXISTS blocked_users CASCADE`);
-  } catch (e) {}
+  // 7. Таблица blocked_users
+  try { await pool.query(`DROP TABLE IF EXISTS blocked_users CASCADE`); } catch (e) {}
   await pool.query(`
     CREATE TABLE blocked_users (
       user_nick VARCHAR(50) NOT NULL REFERENCES users(nick) ON DELETE CASCADE,
@@ -167,7 +146,27 @@ async function initDB() {
     );
   `);
 
-  // Удаляем таблицу group_participants, если осталась
+  // 9. Таблица posts (лента)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS posts (
+      id SERIAL PRIMARY KEY,
+      nick VARCHAR(50) NOT NULL REFERENCES users(nick) ON DELETE CASCADE,
+      text TEXT NOT NULL,
+      media_url TEXT,
+      created_at TIMESTAMP DEFAULT NOW()
+    );
+  `);
+
+  // 10. Таблица post_likes
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS post_likes (
+      post_id INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+      nick VARCHAR(50) NOT NULL REFERENCES users(nick) ON DELETE CASCADE,
+      created_at TIMESTAMP DEFAULT NOW(),
+      PRIMARY KEY (post_id, nick)
+    );
+  `);
+
   try { await pool.query(`DROP TABLE IF EXISTS group_participants CASCADE`); } catch (e) {}
 
   // Публичный чат
@@ -198,7 +197,8 @@ async function getOrCreateNotebook(nick) {
   return notebook.rows[0].id;
 }
 
-// Эндпоинты
+// ------------------- ЭНДПОИНТЫ -------------------
+
 app.post('/upload', upload.single('file'), (req, res) => {
   if (!req.file) return res.status(400).json({ success: false });
   res.json({ success: true, file: req.file });
@@ -224,9 +224,7 @@ app.post('/auth', async (req, res) => {
       await pool.query('INSERT INTO users (nick, pin_hash, token, badge, description) VALUES ($1, $2, $3, $4, $5)', [cleanNick, pinHash, token, '', '']);
       return res.json({ success: true, nick: cleanNick, badge: '', description: '', token });
     } catch (err) {
-      if (err.code === '23505') {
-        return res.status(400).json({ success: false, error: 'Ник уже занят' });
-      }
+      if (err.code === '23505') return res.status(400).json({ success: false, error: 'Ник уже занят' });
       throw err;
     }
   }
@@ -257,6 +255,8 @@ app.post('/change-nick', async (req, res) => {
   await pool.query('UPDATE blocked_users SET user_nick = $1 WHERE user_nick = $2', [newNick, oldNick]);
   await pool.query('UPDATE blocked_users SET blocked_nick = $1 WHERE blocked_nick = $2', [newNick, oldNick]);
   await pool.query('UPDATE chat_participants SET nick = $1 WHERE nick = $2', [newNick, oldNick]);
+  await pool.query('UPDATE posts SET nick = $1 WHERE nick = $2', [newNick, oldNick]);
+  await pool.query('UPDATE post_likes SET nick = $1 WHERE nick = $2', [newNick, oldNick]);
   io.emit('nick changed', { oldNick, newNick });
   res.json({ success: true, newNick });
 });
@@ -311,7 +311,6 @@ app.delete('/delete-account', async (req, res) => {
   if (user.rows.length === 0) return res.json({ success: false, error: 'Сессия недействительна' });
   const valid = await bcrypt.compare(pin, user.rows[0].pin_hash);
   if (!valid) return res.json({ success: false, error: 'Неверный PIN' });
-  // Теперь все связанные записи удалятся каскадно
   await pool.query('DELETE FROM users WHERE nick = $1', [user.rows[0].nick]);
   res.json({ success: true });
 });
@@ -557,6 +556,49 @@ app.post('/edit-message', async (req, res) => {
   else res.json({ success: false });
 });
 
+// ------------------- ЛЕНТА -------------------
+app.get('/feed', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT p.id, p.nick, p.text, p.media_url, p.created_at,
+             COALESCE(l.likes, 0) as likes
+      FROM posts p
+      LEFT JOIN (SELECT post_id, COUNT(*) as likes FROM post_likes GROUP BY post_id) l ON l.post_id = p.id
+      ORDER BY p.created_at DESC
+    `);
+    res.json(result.rows);
+  } catch (e) {
+    res.status(500).json({ error: 'Ошибка загрузки ленты' });
+  }
+});
+
+app.post('/create-post', async (req, res) => {
+  const { nick, text, media_url } = req.body;
+  if (!nick || !text) return res.status(400).json({ success: false });
+  try {
+    await pool.query(`INSERT INTO posts (nick, text, media_url) VALUES ($1, $2, $3)`, [nick, text, media_url || null]);
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ success: false });
+  }
+});
+
+app.post('/like-post', async (req, res) => {
+  const { postId, nick } = req.body;
+  if (!postId || !nick) return res.status(400).json({ success: false });
+  try {
+    await pool.query(`INSERT INTO post_likes (post_id, nick) VALUES ($1, $2)`, [postId, nick]);
+    res.json({ success: true });
+  } catch (err) {
+    if (err.code === '23505') {
+      // Уже лайкнуто – убираем лайк
+      await pool.query(`DELETE FROM post_likes WHERE post_id = $1 AND nick = $2`, [postId, nick]);
+      res.json({ success: true });
+    } else res.status(500).json({ success: false });
+  }
+});
+
+// ------------------- SOCKET.IO -------------------
 const usersInChat = new Map();
 
 io.on('connection', (socket) => {
