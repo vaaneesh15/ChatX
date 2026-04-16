@@ -55,9 +55,10 @@ async function initDB() {
     );
   `);
 
+  // Удаляем колонку who_can_invite, если осталась
   try { await pool.query(`ALTER TABLE users DROP COLUMN IF EXISTS who_can_invite`); } catch (e) {}
 
-  // Таблица chats
+  // Таблица chats (без owner_nick и типа 'group')
   await pool.query(`
     CREATE TABLE IF NOT EXISTS chats (
       id SERIAL PRIMARY KEY,
@@ -70,16 +71,21 @@ async function initDB() {
   try { await pool.query(`ALTER TABLE chats ADD CONSTRAINT chats_type_check CHECK (type IN ('public', 'private', 'notebook'))`); } catch (e) {}
   try { await pool.query(`ALTER TABLE chats DROP COLUMN IF EXISTS owner_nick`); } catch (e) {}
 
-  // Таблица chat_participants (ON DELETE CASCADE)
+  // Таблица chat_participants
   await pool.query(`
     CREATE TABLE IF NOT EXISTS chat_participants (
       chat_id INTEGER REFERENCES chats(id) ON DELETE CASCADE,
-      nick VARCHAR(50) REFERENCES users(nick) ON DELETE CASCADE,
+      nick VARCHAR(50) NOT NULL,
       PRIMARY KEY (chat_id, nick)
     );
   `);
+  // Исправляем внешний ключ на каскадное удаление
+  try {
+    await pool.query(`ALTER TABLE chat_participants DROP CONSTRAINT IF EXISTS chat_participants_nick_fkey`);
+    await pool.query(`ALTER TABLE chat_participants ADD CONSTRAINT chat_participants_nick_fkey FOREIGN KEY (nick) REFERENCES users(nick) ON DELETE CASCADE`);
+  } catch (e) {}
 
-  // Таблица messages (ON DELETE CASCADE для chat_id)
+  // Таблица messages
   await pool.query(`
     CREATE TABLE IF NOT EXISTS messages (
       id SERIAL PRIMARY KEY,
@@ -97,7 +103,7 @@ async function initDB() {
     );
   `);
 
-  // Таблица message_reactions (ON DELETE CASCADE для message_id)
+  // Таблица message_reactions
   await pool.query(`
     CREATE TABLE IF NOT EXISTS message_reactions (
       id SERIAL PRIMARY KEY,
@@ -109,7 +115,7 @@ async function initDB() {
     );
   `);
 
-  // Таблица contacts (ON DELETE CASCADE)
+  // Таблица contacts
   await pool.query(`
     CREATE TABLE IF NOT EXISTS contacts (
       user_nick VARCHAR(50) NOT NULL REFERENCES users(nick) ON DELETE CASCADE,
@@ -119,7 +125,7 @@ async function initDB() {
     );
   `);
 
-  // Таблица blocked_users (ON DELETE CASCADE)
+  // Таблица blocked_users
   await pool.query(`
     CREATE TABLE IF NOT EXISTS blocked_users (
       user_nick VARCHAR(50) NOT NULL REFERENCES users(nick) ON DELETE CASCADE,
@@ -129,7 +135,7 @@ async function initDB() {
     );
   `);
 
-  // Таблица deleted_chats (ON DELETE CASCADE)
+  // Таблица deleted_chats
   await pool.query(`
     CREATE TABLE IF NOT EXISTS deleted_chats (
       chat_id INTEGER REFERENCES chats(id) ON DELETE CASCADE,
@@ -138,8 +144,10 @@ async function initDB() {
     );
   `);
 
+  // Удаляем таблицу group_participants, если осталась
   try { await pool.query(`DROP TABLE IF EXISTS group_participants CASCADE`); } catch (e) {}
 
+  // Публичный чат
   const publicChat = await pool.query(`SELECT id FROM chats WHERE type = 'public'`);
   if (publicChat.rows.length === 0) {
     await pool.query(`INSERT INTO chats (type, name) VALUES ('public', 'Общий чат')`);
@@ -225,6 +233,8 @@ app.post('/change-nick', async (req, res) => {
   await pool.query('UPDATE contacts SET contact_nick = $1 WHERE contact_nick = $2', [newNick, oldNick]);
   await pool.query('UPDATE blocked_users SET user_nick = $1 WHERE user_nick = $2', [newNick, oldNick]);
   await pool.query('UPDATE blocked_users SET blocked_nick = $1 WHERE blocked_nick = $2', [newNick, oldNick]);
+  // Обновляем ник в chat_participants
+  await pool.query('UPDATE chat_participants SET nick = $1 WHERE nick = $2', [newNick, oldNick]);
   io.emit('nick changed', { oldNick, newNick });
   res.json({ success: true, newNick });
 });
@@ -279,29 +289,9 @@ app.delete('/delete-account', async (req, res) => {
   if (user.rows.length === 0) return res.json({ success: false, error: 'Сессия недействительна' });
   const valid = await bcrypt.compare(pin, user.rows[0].pin_hash);
   if (!valid) return res.json({ success: false, error: 'Неверный PIN' });
-
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-    const nick = user.rows[0].nick;
-    // Удаляем все связанные записи вручную, чтобы гарантировать успех (хотя ON DELETE CASCADE уже делает это, но для верности)
-    await client.query('DELETE FROM message_reactions WHERE nick = $1', [nick]);
-    await client.query('DELETE FROM messages WHERE nick = $1', [nick]);
-    await client.query('DELETE FROM chat_participants WHERE nick = $1', [nick]);
-    await client.query('DELETE FROM contacts WHERE user_nick = $1 OR contact_nick = $1', [nick]);
-    await client.query('DELETE FROM blocked_users WHERE user_nick = $1 OR blocked_nick = $1', [nick]);
-    await client.query('DELETE FROM deleted_chats WHERE nick = $1', [nick]);
-    // Удаляем пользователя
-    await client.query('DELETE FROM users WHERE nick = $1', [nick]);
-    await client.query('COMMIT');
-    res.json({ success: true });
-  } catch (err) {
-    await client.query('ROLLBACK');
-    console.error(err);
-    res.status(500).json({ success: false, error: 'Ошибка при удалении аккаунта' });
-  } finally {
-    client.release();
-  }
+  // Благодаря ON DELETE CASCADE связанные записи удалятся автоматически
+  await pool.query('DELETE FROM users WHERE nick = $1', [user.rows[0].nick]);
+  res.json({ success: true });
 });
 
 app.get('/contacts', async (req, res) => {
@@ -425,10 +415,6 @@ app.get('/chats', async (req, res) => {
   }
   
   chats.sort((a, b) => {
-    if (a.type === 'public') return -1;
-    if (b.type === 'public') return 1;
-    if (a.type === 'notebook') return -1;
-    if (b.type === 'notebook') return 1;
     const aTime = a.last_message ? new Date(a.last_message.created_at).getTime() : 0;
     const bTime = b.last_message ? new Date(b.last_message.created_at).getTime() : 0;
     return bTime - aTime;
