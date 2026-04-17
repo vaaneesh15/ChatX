@@ -18,7 +18,7 @@
         button, .clickable { cursor:pointer; transition:all 0.05s ease; background:none; border:none; color:inherit; }
         button:active, .clickable:active { opacity:0.6; transform:scale(0.97); }
         .app-container { height:100%; display:flex; flex-direction:column; background:var(--bg-page); }
-        .chat-header { display:flex; align-items:center; padding:0.8rem 1rem; background:var(--input-bg); border-bottom:1px solid var(--border-light); border-top:1px solid var(--border-light); }
+        .chat-header { display:flex; align-items:center; padding:0.8rem 1rem; background:var(--input-bg); border-bottom:1px solid var(--border-light); }
         .chat-header span { font-weight:600; }
         .nick-editor { background:transparent; border:none; color:var(--accent-color); font-weight:600; font-size:1.1rem; outline:none; width:auto; min-width:50px; }
         .nick-editor:focus { border-bottom:1px solid var(--accent-color); }
@@ -88,9 +88,9 @@
 <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
 <script>
 (function(){function a(e){const t=e.target.closest?.('button, .clickable');if(t)t.classList.add('tapped');}function r(e){const t=e.target.closest?.('button, .clickable');if(t)t.classList.remove('tapped');}document.addEventListener('touchstart',a,{passive:true});document.addEventListener('touchend',r);document.addEventListener('touchcancel',r);document.addEventListener('mousedown',a);document.addEventListener('mouseup',r);document.addEventListener('mouseleave',r);})();
-document.addEventListener('DOMContentLoaded',function(){
+document.addEventListener('DOMContentLoaded',async function(){
 function $(id){return document.getElementById(id);}
-let socket=null,currentUser={nick:"Гость"},messages=[],currentChatId=null,editingMessage=null,pendingDeleteMessageId=null,replyingTo=null,typingTimeout=null;
+let socket=io(),currentUser={nick:"Гость"},messages=[],currentChatId=null,editingMessage=null,pendingDeleteMessageId=null,replyingTo=null,typingTimeout=null;
 let savedNick=localStorage.getItem('chat_nick');if(savedNick){currentUser.nick=savedNick;$('nickInput').value=savedNick;}
 $('nickInput').addEventListener('change',function(){let newNick=this.value.trim();if(newNick&&newNick!==currentUser.nick){currentUser.nick=newNick;localStorage.setItem('chat_nick',newNick);}});
 function showModal(id){let m=$(id);if(!m)return;m.style.display='flex';}
@@ -121,7 +121,7 @@ async function editMessage(id,newText){await fetch('/edit-message',{method:'POST
 $('attachBtn').onclick=()=>{let i=document.createElement('input');i.type='file';i.accept='*/*';i.onchange=async e=>{let f=e.target.files[0];if(!f)return;let fd=new FormData();fd.append('file',f);let r=await fetch('/upload',{method:'POST',body:fd}),d=await r.json();if(d.success){let type=(f.type.startsWith('image/')||f.type.startsWith('video/'))?'media':'file';fetch('/chat-message',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({chat_id:currentChatId,nick:currentUser.nick,type,file_url:'/uploads/'+d.file.filename,file_name:f.name,file_size:f.size})});}};i.click();};
 async function initializeApp(){await initChat();socket.on('chat message received',newMsg=>{if(currentChatId===newMsg.chat_id){messages.push(newMsg);renderMessages();}});socket.on('message deleted',id=>{messages=messages.filter(m=>m.id!==id);renderMessages();});socket.on('message edited',({messageId,newText})=>{let m=messages.find(m=>m.id===messageId);if(m){m.text=newText;m.edited=true;renderMessages();}});socket.on('user typing',d=>{if(d.chatId===currentChatId)updateTypingIndicator(d);});socket.on('user stop typing',d=>{if(d.chatId===currentChatId)updateTypingIndicator(null);});}
 function bindUI(){$('sendBtn').onclick=sendMessage;let inp=$('messageInput');inp.addEventListener('input',()=>{autoResize(inp);onTyping(true);});}
-socket=io();socket.emit('user online',currentUser.nick);bindUI();await initializeApp();
+socket.emit('user online',currentUser.nick);bindUI();await initializeApp();
 });
 </script>
 </body>
