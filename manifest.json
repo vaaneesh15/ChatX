@@ -1,37 +1,9 @@
 {
-  "name": "ChatX",
-  "short_name": "ChatX",
-  "description": "Мессенджер с тремя общими чатами",
-  "theme_color": "#1c1c1e",
-  "background_color": "#121212",
+  "name": "Анкеты сервера",
+  "short_name": "Анкеты",
+  "start_url": ".",
   "display": "standalone",
-  "orientation": "portrait",
-  "scope": "/",
-  "start_url": "/",
-  "icons": [
-    {
-      "src": "icons/icon_192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "icons/icon_512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "icons/maskable_192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "maskable"
-    },
-    {
-      "src": "icons/maskable_512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "maskable"
-    }
-  ]
+  "background_color": "#f5f5f5",
+  "theme_color": "#2c3e50",
+  "icons": []
 }
