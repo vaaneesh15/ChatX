@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#f7f9f6" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="TapX" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <title>TapX Clicker</title>
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" href="./assets/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="./assets/icon-180.png" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">offline web app</p>
+          <h1>TapX</h1>
+        </div>
+
+        <div class="theme-switch" aria-label="Оформление">
+          <button class="theme-option" type="button" data-theme-choice="auto">Авто</button>
+          <button class="theme-option" type="button" data-theme-choice="light">Светлая</button>
+          <button class="theme-option" type="button" data-theme-choice="dark">Темная</button>
+        </div>
+      </header>
+
+      <main class="content">
+        <section class="score-panel" aria-live="polite">
+          <p class="score-label">Баланс</p>
+          <div class="score-row">
+            <strong id="score">0</strong>
+            <span>искр</span>
+          </div>
+          <div class="stats-grid">
+            <div>
+              <span>Всего</span>
+              <b id="total">0</b>
+            </div>
+            <div>
+              <span>За тап</span>
+              <b id="tapPower">1</b>
+            </div>
+            <div>
+              <span>В секунду</span>
+              <b id="cps">0</b>
+            </div>
+          </div>
+        </section>
+
+        <section class="tap-zone" aria-label="Зона клика">
+          <button id="tapButton" class="tap-button" type="button">
+            <span class="tap-glow"></span>
+            <span class="tap-core">
+              <span class="tap-title">Тап</span>
+              <span class="tap-subtitle">нажми</span>
+            </span>
+          </button>
+        </section>
+
+        <section class="upgrades-section">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">магазин</p>
+              <h2>Улучшения</h2>
+            </div>
+            <button id="resetButton" class="ghost-button" type="button">Сброс</button>
+          </div>
+          <div id="upgrades" class="upgrades-list"></div>
+        </section>
+      </main>
+    </div>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
